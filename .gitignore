@@ -18,6 +18,8 @@ src/state/*.json
 *.log
 tmp/
 .tmp/
+test-results/
+playwright-report/
 
 # Internal tooling
 .weave/
