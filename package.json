@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "pw:install": "playwright install --with-deps chromium"
   },
