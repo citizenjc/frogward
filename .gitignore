@@ -12,6 +12,7 @@ coverage/
 .env.*
 !.env.example
 *.auth.json
+tmp/**/*.auth.json
 src/state/*.json
 
 # Logs / runtime
@@ -20,9 +21,11 @@ tmp/
 .tmp/
 test-results/
 playwright-report/
+tmp/live-artifacts/
 
 # Internal tooling
 .weave/
+.playwright-mcp/
 
 # OS / editor
 .DS_Store

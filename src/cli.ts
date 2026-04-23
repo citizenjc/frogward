@@ -7,7 +7,10 @@ export async function runCli(args: string[]): Promise<void> {
 }
 
 function parseArgs(args: string[]): RunOptions {
+  const isProbe = args.includes('--probe') || args.includes('--check');
+
   return {
-    mode: args.includes('--check') ? 'check' : 'once'
+    mode: args.includes('--check') ? 'check' : 'once',
+    safetyLevel: isProbe ? 'probe' : 'forward'
   };
 }

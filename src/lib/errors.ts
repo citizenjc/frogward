@@ -31,6 +31,13 @@ export class ModuleError extends AppError {
   }
 }
 
+export class AuthError extends AppError {
+  constructor(message: string, details: Record<string, unknown> = {}) {
+    super('AUTH_FAILURE', details, true, message);
+    this.name = 'AuthError';
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }

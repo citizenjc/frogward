@@ -4,10 +4,12 @@ import type { Logger } from '../lib/logger.js';
 import type { StateStore } from '../modules/state.js';
 import type { MessageSummary } from './message.js';
 
+export type SafetyLevel = 'probe' | 'forward';
 export type RunMode = 'check' | 'once';
 
 export interface RunOptions {
   mode: RunMode;
+  safetyLevel: SafetyLevel;
 }
 
 export interface ModuleContext {
@@ -28,4 +30,9 @@ export interface AppRuntime {
   logger: Logger;
   browser: BrowserManager;
   state: StateStore;
+}
+
+export interface LoginResult {
+  status: 'reused-session' | 'interactive-login';
+  inboxReached: boolean;
 }

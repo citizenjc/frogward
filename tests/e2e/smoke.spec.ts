@@ -16,3 +16,16 @@ test('scaffold boot smoke path succeeds', async () => {
 
   expect(stdout).toContain('app.check.complete');
 });
+
+test('scaffold explicit probe mode succeeds', async () => {
+  const { stdout } = await execFileAsync('npm', ['run', 'dev', '--', '--probe'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      APP_MODE: 'scaffold'
+    }
+  });
+
+  expect(stdout).toContain('"safetyLevel":"probe"');
+  expect(stdout).toContain('app.check.complete');
+});

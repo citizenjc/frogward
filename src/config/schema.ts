@@ -2,11 +2,15 @@ export interface AppConfig {
   mode: 'scaffold' | 'live';
   sapoUsername: string;
   sapoPassword: string;
-  destinationEmail: string;
+  destinationEmail?: string;
   pollIntervalMs: number;
   headless: boolean;
   stateFilePath: string;
   storageStatePath?: string;
+  persistStorageState: boolean;
+  artifactDir: string;
+  captureScreenshotOnFailure: boolean;
+  captureTraceOnFailure: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
@@ -31,6 +35,10 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const headless = parseBoolean(source.HEADLESS, true);
   const stateFilePath = source.STATE_FILE_PATH?.trim() || 'src/state/runtime-state.json';
   const storageStatePath = source.STORAGE_STATE_PATH?.trim() || undefined;
+  const persistStorageState = parseBoolean(source.PERSIST_STORAGE_STATE, true);
+  const artifactDir = source.ARTIFACT_DIR?.trim() || 'tmp/live-artifacts';
+  const captureScreenshotOnFailure = parseBoolean(source.CAPTURE_SCREENSHOT_ON_FAILURE, true);
+  const captureTraceOnFailure = parseBoolean(source.CAPTURE_TRACE_ON_FAILURE, true);
   const logLevel = parseLogLevel(source.LOG_LEVEL);
   const errors: string[] = [];
 
@@ -42,8 +50,16 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
     errors.push('POLL_INTERVAL_MS must be a number >= 1000');
   }
 
-  if (!isEmail(destinationEmail) && !(mode === 'scaffold' && destinationEmail === '')) {
+  if (destinationEmail && !isEmail(destinationEmail)) {
     errors.push('DESTINATION_EMAIL must be a valid email address');
+  }
+
+  if (!isSafeArtifactPath(artifactDir)) {
+    errors.push('ARTIFACT_DIR must stay under tmp/');
+  }
+
+  if (storageStatePath && !isSafeStoragePath(storageStatePath)) {
+    errors.push('STORAGE_STATE_PATH must stay under tmp/ and end with .auth.json');
   }
 
   if (mode === 'live') {
@@ -55,8 +71,8 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
       errors.push('SAPO_PASSWORD is required in live mode');
     }
 
-    if (!destinationEmail) {
-      errors.push('DESTINATION_EMAIL is required in live mode');
+    if (persistStorageState && !storageStatePath) {
+      errors.push('STORAGE_STATE_PATH is required in live mode');
     }
   }
 
@@ -73,11 +89,15 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
       mode,
       sapoUsername,
       sapoPassword,
-      destinationEmail: destinationEmail || 'forward@example.com',
+      destinationEmail: destinationEmail || undefined,
       pollIntervalMs,
       headless,
       stateFilePath,
       storageStatePath,
+      persistStorageState,
+      artifactDir,
+      captureScreenshotOnFailure,
+      captureTraceOnFailure,
       logLevel
     }
   };
@@ -116,4 +136,18 @@ function parseLogLevel(level: string | undefined): AppConfig['logLevel'] {
 
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isSafeRelativePath(value: string): boolean {
+  return (
+    value.length > 0 && !value.startsWith('/') && !value.includes('..') && !value.includes('://')
+  );
+}
+
+function isSafeArtifactPath(value: string): boolean {
+  return isSafeRelativePath(value) && value.startsWith('tmp/');
+}
+
+function isSafeStoragePath(value: string): boolean {
+  return isSafeRelativePath(value) && value.startsWith('tmp/') && value.endsWith('.auth.json');
 }
