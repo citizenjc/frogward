@@ -1,6 +1,6 @@
 import { config as loadDotEnv } from 'dotenv';
 
-import { AppError } from '../lib/errors.js';
+import { ConfigError } from '../lib/errors.js';
 import { parseConfig } from './schema.js';
 
 export type EnvSource = Record<string, string | undefined>;
@@ -14,7 +14,7 @@ export function loadConfig(source: EnvSource) {
   const result = parseConfig(source);
 
   if (!result.ok) {
-    throw new AppError('CONFIG_INVALID', redactConfigError(result.error));
+    throw new ConfigError(redactConfigError(result.error));
   }
 
   return result.value;

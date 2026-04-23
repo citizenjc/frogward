@@ -28,8 +28,42 @@ function writeLog(
     return;
   }
 
-  const payload = JSON.stringify({ level, event, data: data ?? {} });
-  process.stdout.write(`${payload}\n`);
+  const payload = JSON.stringify({
+    level,
+    event,
+    data: sanitizeValue(data ?? {})
+  });
+  const stream = level === 'error' ? process.stderr : process.stdout;
+  stream.write(`${payload}\n`);
+}
+
+function sanitizeValue(value: unknown, key = ''): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeValue(entry, key));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entryValue]) => [
+        entryKey,
+        sanitizeValue(entryValue, entryKey)
+      ])
+    );
+  }
+
+  if (typeof value === 'string') {
+    if (isSecretKey(key)) {
+      return '[redacted]';
+    }
+
+    return value.replace(/\b[^\s=;]+@[^\s;]+\b/g, '[redacted-email]');
+  }
+
+  return value;
+}
+
+function isSecretKey(key: string): boolean {
+  return /pass|password|secret|token|key/i.test(key);
 }
 
 function rank(level: LogLevel): number {

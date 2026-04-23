@@ -1,4 +1,5 @@
 import type { AppConfig } from '../config/schema.js';
+import { BrowserError } from './errors.js';
 import type { Logger } from './logger.js';
 
 export interface BrowserPage {
@@ -14,6 +15,16 @@ interface BrowserManagerOptions {
   logger: Logger;
 }
 
+interface BrowserContextHandle {
+  newPage(): Promise<BrowserPage>;
+  close(): Promise<void>;
+}
+
+interface BrowserHandle {
+  newContext(options?: { storageState: string }): Promise<BrowserContextHandle>;
+  close(): Promise<void>;
+}
+
 export function createBrowserManager({ config, logger }: BrowserManagerOptions): BrowserManager {
   return {
     async withPage<T>(callback: (page: BrowserPage) => Promise<T>): Promise<T> {
@@ -23,18 +34,26 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
       }
 
       logger.info('browser.playwright.start', { headless: config.headless });
-      const { chromium } = await import('playwright');
-      const browser = await chromium.launch({ headless: config.headless });
-      const context = await browser.newContext(
-        config.storageStatePath ? { storageState: config.storageStatePath } : undefined
-      );
-      const page = await context.newPage();
+      let browser: BrowserHandle | undefined;
+      let context: BrowserContextHandle | undefined;
 
       try {
+        const { chromium } = await import('playwright');
+        browser = await chromium.launch({ headless: config.headless });
+        context = await browser.newContext(
+          config.storageStatePath ? { storageState: config.storageStatePath } : undefined
+        );
+        const page = await context.newPage();
+
         return await callback(page);
+      } catch (error) {
+        throw new BrowserError('Browser startup or navigation failed.', {
+          cause: error instanceof Error ? error.message : 'unknown',
+          mode: config.mode
+        });
       } finally {
-        await context.close();
-        await browser.close();
+        await context?.close();
+        await browser?.close();
       }
     }
   };

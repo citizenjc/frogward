@@ -52,6 +52,13 @@ Current format:
 }
 ```
 
+## Logging and failures
+
+- Logs are newline-delimited JSON events.
+- Email-like values and secret-shaped fields are redacted before log output.
+- Config, browser, and module failures use centralized app error types.
+- Fatal startup/runtime failures exit non-zero and include whether the failure is retryable.
+
 ## Planned goals
 
 - Log into SAPO webmail safely

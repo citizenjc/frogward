@@ -1,5 +1,6 @@
 import { createEnvSource, loadConfig } from './config/env.js';
 import { createBrowserManager } from './lib/browser.js';
+import { isAppError, ModuleError } from './lib/errors.js';
 import { createLogger } from './lib/logger.js';
 import { checkInbox } from './modules/check.js';
 import { forwardMessage } from './modules/forward.js';
@@ -23,8 +24,10 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
       });
 
       await browser.withPage(async (page) => {
-        await loginToSapo({ config, logger, page });
-        const messages = await checkInbox({ config, logger, page, state });
+        await runModule('login', () => loginToSapo({ config, logger, page }));
+        const messages = await runModule('check', () =>
+          checkInbox({ config, logger, page, state })
+        );
 
         if (options.mode === 'check') {
           logger.info('app.check.complete', { discoveredMessages: messages.length });
@@ -32,11 +35,25 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
         }
 
         for (const message of messages) {
-          await forwardMessage({ config, logger, page, message });
+          await runModule('forward', () => forwardMessage({ config, logger, page, message }));
         }
 
         logger.info('app.once.complete', { processedMessages: messages.length });
       });
     }
   };
+}
+
+async function runModule<T>(moduleName: string, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (isAppError(error)) {
+      throw error;
+    }
+
+    throw new ModuleError(moduleName, `${moduleName} module failed.`, {
+      cause: error instanceof Error ? error.message : 'unknown'
+    });
+  }
 }
