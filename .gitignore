@@ -11,11 +11,16 @@ coverage/
 .env
 .env.*
 !.env.example
+*.auth.json
+src/state/*.json
 
 # Logs / runtime
 *.log
 tmp/
 .tmp/
+
+# Internal tooling
+.weave/
 
 # OS / editor
 .DS_Store
