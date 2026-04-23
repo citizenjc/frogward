@@ -1,13 +1,8 @@
-import type { AppConfig } from '../config/schema.js';
 import type { BrowserPage } from '../lib/browser.js';
-import type { Logger } from '../lib/logger.js';
-import type { MessageSummary } from '../types/message.js';
+import type { ForwardContext } from '../types/runtime.js';
 
-interface ForwardInput {
-  config: AppConfig;
-  logger: Logger;
+interface ForwardInput extends ForwardContext {
   page: BrowserPage;
-  message: MessageSummary;
 }
 
 export async function forwardMessage({

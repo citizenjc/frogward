@@ -2,6 +2,26 @@ import type { AppConfig } from '../config/schema.js';
 import type { BrowserManager } from '../lib/browser.js';
 import type { Logger } from '../lib/logger.js';
 import type { StateStore } from '../modules/state.js';
+import type { MessageSummary } from './message.js';
+
+export type RunMode = 'check' | 'once';
+
+export interface RunOptions {
+  mode: RunMode;
+}
+
+export interface ModuleContext {
+  config: AppConfig;
+  logger: Logger;
+}
+
+export interface InboxContext extends ModuleContext {
+  state: StateStore;
+}
+
+export interface ForwardContext extends ModuleContext {
+  message: MessageSummary;
+}
 
 export interface AppRuntime {
   config: AppConfig;

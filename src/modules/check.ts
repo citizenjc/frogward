@@ -1,14 +1,9 @@
-import type { AppConfig } from '../config/schema.js';
 import type { BrowserPage } from '../lib/browser.js';
-import type { Logger } from '../lib/logger.js';
-import type { StateStore } from './state.js';
 import type { MessageSummary } from '../types/message.js';
+import type { InboxContext } from '../types/runtime.js';
 
-interface CheckInput {
-  config: AppConfig;
-  logger: Logger;
+interface CheckInput extends InboxContext {
   page: BrowserPage;
-  state: StateStore;
 }
 
 export async function checkInbox({
@@ -17,9 +12,11 @@ export async function checkInbox({
   page,
   state
 }: CheckInput): Promise<MessageSummary[]> {
+  const snapshot = await state.load();
+
   logger.info('sapo.check.placeholder', {
     destination: config.destinationEmail,
-    knownMessages: state.getSnapshot().processed.length
+    knownMessages: snapshot.processed.length
   });
   await page.goto('https://mail.sapo.pt/inbox');
   return [];

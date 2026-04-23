@@ -35,6 +35,23 @@ Real secrets stay in local `.env` only.
 
 Config validation fails fast and redacts email-like values in startup errors.
 
+## Local state
+
+The scaffold uses a local JSON file for processed message tracking. Missing state bootstraps to an empty list, writes are atomic via temp-file rename, duplicate message ids are ignored, and corrupt files are quarantined to `*.corrupt` before a fresh empty state is used.
+
+Current format:
+
+```json
+{
+  "processed": [
+    {
+      "id": "message-id",
+      "processedAt": "2026-04-23T00:00:00.000Z"
+    }
+  ]
+}
+```
+
 ## Planned goals
 
 - Log into SAPO webmail safely

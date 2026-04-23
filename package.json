@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx -e \"console.log('frogward scaffold ready')\"",
+    "dev": "tsx src/index.ts",
     "check": "npm run lint && npm run typecheck && npm run test",
     "lint": "eslint .",
     "format": "prettier --write .",
