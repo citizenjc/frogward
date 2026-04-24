@@ -1,6 +1,7 @@
 import type { BrowserPage } from '../lib/browser.js';
 import { ModuleError } from '../lib/errors.js';
 import { parseInboxRows } from './inbox-parser.js';
+import { detectNewMail } from './new-mail-detector.js';
 import type { InboxContext, InboxListingResult } from '../types/runtime.js';
 
 interface CheckInput extends InboxContext {
@@ -16,7 +17,7 @@ export async function checkInbox({
   const snapshot = await state.load();
 
   logger.info('sapo.check.start', {
-    knownMessages: snapshot.processed.length,
+    knownMessages: snapshot.seen.length,
     mode: config.mode
   });
 
@@ -29,16 +30,29 @@ export async function checkInbox({
 
   const reachability = await ensureInboxReachable(page);
   const listing = await buildListingSummary(page);
+  const nowIso = new Date().toISOString();
+  const detection = detectNewMail({
+    nowIso,
+    currentMessages: listing.messages,
+    state: snapshot
+  });
+
+  await state.save(detection.nextState);
 
   const result: InboxListingResult = {
     messages: listing.messages,
+    newMessages: detection.newMessages,
+    alreadySeenMessages: detection.alreadySeenMessages,
     probe: {
       inboxReached: true,
       inboxTitle: reachability.title,
       visibleMessageCount: listing.visibleMessageCount,
       parsedMessageCount: listing.messages.length,
       skippedAdRowCount: listing.skippedAdRowCount,
-      parserFallbacksUsed: listing.parserFallbacksUsed
+      parserFallbacksUsed: listing.parserFallbacksUsed,
+      alreadySeenCount: detection.alreadySeenMessages.length,
+      newMessageCount: detection.newMessages.length,
+      bootstrapScan: detection.bootstrap
     }
   };
 
@@ -48,6 +62,9 @@ export async function checkInbox({
     visibleMessageCount: result.probe.visibleMessageCount,
     parsedMessageCount: result.probe.parsedMessageCount,
     skippedAdRowCount: result.probe.skippedAdRowCount,
+    alreadySeenCount: result.probe.alreadySeenCount,
+    newMessageCount: result.probe.newMessageCount,
+    bootstrapScan: result.probe.bootstrapScan,
     parserFallbacksUsed: result.probe.parserFallbacksUsed,
     sampleSenders: redactSummaryList(
       result.messages.map((message) => message.from),
@@ -67,6 +84,19 @@ async function buildListingSummary(page: BrowserPage): Promise<{
   skippedAdRowCount: number;
   parserFallbacksUsed: string[];
 }> {
+  await page.waitForAnySelector(
+    [
+      '.list-item.focus',
+      '.mail-item',
+      '.message-list',
+      '.messages-list',
+      '[data-test="message-list"]',
+      'button:has-text("Nova mensagem")',
+      '[title*="Caixa de Entrada"]'
+    ],
+    12_000
+  );
+
   const listHtml =
     (await page.visibleListHtml(
       '[data-test="message-list"], .message-list, .messages-list, #messages, .list-group, .container.messages-list'

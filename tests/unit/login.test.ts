@@ -12,6 +12,7 @@ describe('login module', () => {
         sapoPassword: 'secret',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
+        pollErrorBackoffMs: 5000,
         headless: true,
         stateFilePath: 'src/state/runtime-state.json',
         storageStatePath: 'tmp/sapo/session.auth.json',
@@ -19,6 +20,12 @@ describe('login module', () => {
         artifactDir: 'tmp/live-artifacts',
         captureScreenshotOnFailure: true,
         captureTraceOnFailure: true,
+        forwardingEnabled: false,
+        forwardingAck: false,
+        forwardAllowSenderPatterns: [],
+        forwardBlockSenderPatterns: [],
+        forwardAllowSubjectPatterns: [],
+        forwardBlockSubjectPatterns: [],
         logLevel: 'info'
       },
       logger: {
@@ -31,12 +38,19 @@ describe('login module', () => {
       page: {
         goto: vi.fn().mockResolvedValue(null),
         fill: vi.fn().mockResolvedValue(undefined),
+        pressKey: vi.fn().mockResolvedValue(undefined),
+        readFieldValue: vi.fn().mockResolvedValue(undefined),
+        readInnerHtml: vi.fn().mockResolvedValue(undefined),
         click: vi.fn().mockResolvedValue(undefined),
+        clickFirst: vi.fn().mockResolvedValue(true),
+        clickFirstByText: vi.fn().mockResolvedValue(undefined),
+        waitForAnySelector: vi.fn().mockResolvedValue('a[href*="inbox"]'),
         waitForSelector: vi.fn().mockResolvedValue(true),
         isVisible: vi.fn().mockResolvedValue(true),
         url: vi.fn().mockReturnValue('https://mail.sapo.pt/inbox'),
         title: vi.fn().mockResolvedValue('Inbox'),
         screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/auth/failure.png'),
+        contentIncludesAny: vi.fn().mockResolvedValue(false),
         visibleListHtml: vi.fn().mockResolvedValue(undefined),
         content: vi.fn().mockResolvedValue('<html></html>')
       }
@@ -54,6 +68,7 @@ describe('login module', () => {
           sapoPassword: '',
           destinationEmail: undefined,
           pollIntervalMs: 60000,
+          pollErrorBackoffMs: 5000,
           headless: true,
           stateFilePath: 'src/state/runtime-state.json',
           storageStatePath: 'tmp/sapo/session.auth.json',
@@ -61,6 +76,12 @@ describe('login module', () => {
           artifactDir: 'tmp/live-artifacts',
           captureScreenshotOnFailure: true,
           captureTraceOnFailure: true,
+          forwardingEnabled: false,
+          forwardingAck: false,
+          forwardAllowSenderPatterns: [],
+          forwardBlockSenderPatterns: [],
+          forwardAllowSubjectPatterns: [],
+          forwardBlockSubjectPatterns: [],
           logLevel: 'info'
         },
         logger: {
@@ -73,12 +94,19 @@ describe('login module', () => {
         page: {
           goto: vi.fn().mockResolvedValue(null),
           fill: vi.fn().mockResolvedValue(undefined),
+          pressKey: vi.fn().mockResolvedValue(undefined),
+          readFieldValue: vi.fn().mockResolvedValue(undefined),
+          readInnerHtml: vi.fn().mockResolvedValue(undefined),
           click: vi.fn().mockResolvedValue(undefined),
+          clickFirst: vi.fn().mockResolvedValue(true),
+          clickFirstByText: vi.fn().mockResolvedValue(undefined),
+          waitForAnySelector: vi.fn().mockResolvedValue(undefined),
           waitForSelector: vi.fn().mockResolvedValue(false),
           isVisible: vi.fn().mockResolvedValue(false),
           url: vi.fn().mockReturnValue('https://mail.sapo.pt/login'),
           title: vi.fn().mockResolvedValue('Login'),
           screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/auth/failure.png'),
+          contentIncludesAny: vi.fn().mockResolvedValue(false),
           visibleListHtml: vi.fn().mockResolvedValue(undefined),
           content: vi.fn().mockResolvedValue('<html></html>')
         }

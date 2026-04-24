@@ -4,6 +4,7 @@ export interface AppConfig {
   sapoPassword: string;
   destinationEmail?: string;
   pollIntervalMs: number;
+  pollErrorBackoffMs: number;
   headless: boolean;
   stateFilePath: string;
   storageStatePath?: string;
@@ -11,6 +12,13 @@ export interface AppConfig {
   artifactDir: string;
   captureScreenshotOnFailure: boolean;
   captureTraceOnFailure: boolean;
+  forwardingEnabled: boolean;
+  forwardingAck: boolean;
+  forwardingWarpToken?: string;
+  forwardAllowSenderPatterns: string[];
+  forwardBlockSenderPatterns: string[];
+  forwardAllowSubjectPatterns: string[];
+  forwardBlockSubjectPatterns: string[];
   logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
@@ -32,6 +40,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const sapoPassword = source.SAPO_PASSWORD?.trim() ?? '';
   const destinationEmail = source.DESTINATION_EMAIL?.trim() ?? '';
   const pollIntervalMs = Number(source.POLL_INTERVAL_MS ?? '60000');
+  const pollErrorBackoffMs = Number(source.POLL_ERROR_BACKOFF_MS ?? '5000');
   const headless = parseBoolean(source.HEADLESS, true);
   const stateFilePath = source.STATE_FILE_PATH?.trim() || 'src/state/runtime-state.json';
   const storageStatePath = source.STORAGE_STATE_PATH?.trim() || undefined;
@@ -39,6 +48,13 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const artifactDir = source.ARTIFACT_DIR?.trim() || 'tmp/live-artifacts';
   const captureScreenshotOnFailure = parseBoolean(source.CAPTURE_SCREENSHOT_ON_FAILURE, true);
   const captureTraceOnFailure = parseBoolean(source.CAPTURE_TRACE_ON_FAILURE, true);
+  const forwardingEnabled = parseBoolean(source.FORWARDING_ENABLED, false);
+  const forwardingAck = parseBoolean(source.FORWARDING_ACK, false);
+  const forwardingWarpToken = source.FORWARDING_WARP_TOKEN?.trim() || undefined;
+  const forwardAllowSenderPatterns = parsePatterns(source.FORWARD_ALLOW_SENDERS);
+  const forwardBlockSenderPatterns = parsePatterns(source.FORWARD_BLOCK_SENDERS);
+  const forwardAllowSubjectPatterns = parsePatterns(source.FORWARD_ALLOW_SUBJECTS);
+  const forwardBlockSubjectPatterns = parsePatterns(source.FORWARD_BLOCK_SUBJECTS);
   const logLevel = parseLogLevel(source.LOG_LEVEL);
   const errors: string[] = [];
 
@@ -48,6 +64,10 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
 
   if (!Number.isFinite(pollIntervalMs) || pollIntervalMs < 1000) {
     errors.push('POLL_INTERVAL_MS must be a number >= 1000');
+  }
+
+  if (!Number.isFinite(pollErrorBackoffMs) || pollErrorBackoffMs < 1000) {
+    errors.push('POLL_ERROR_BACKOFF_MS must be a number >= 1000');
   }
 
   if (destinationEmail && !isEmail(destinationEmail)) {
@@ -76,6 +96,16 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
     }
   }
 
+  if (forwardingEnabled) {
+    if (!forwardingAck) {
+      errors.push('FORWARDING_ACK must be true when FORWARDING_ENABLED=true');
+    }
+
+    if (!forwardingWarpToken) {
+      errors.push('FORWARDING_WARP_TOKEN is required when FORWARDING_ENABLED=true');
+    }
+  }
+
   if (errors.length > 0 || !mode) {
     return {
       ok: false,
@@ -91,6 +121,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
       sapoPassword,
       destinationEmail: destinationEmail || undefined,
       pollIntervalMs,
+      pollErrorBackoffMs,
       headless,
       stateFilePath,
       storageStatePath,
@@ -98,6 +129,13 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
       artifactDir,
       captureScreenshotOnFailure,
       captureTraceOnFailure,
+      forwardingEnabled,
+      forwardingAck,
+      forwardingWarpToken,
+      forwardAllowSenderPatterns,
+      forwardBlockSenderPatterns,
+      forwardAllowSubjectPatterns,
+      forwardBlockSubjectPatterns,
       logLevel
     }
   };
@@ -150,4 +188,15 @@ function isSafeArtifactPath(value: string): boolean {
 
 function isSafeStoragePath(value: string): boolean {
   return isSafeRelativePath(value) && value.startsWith('tmp/') && value.endsWith('.auth.json');
+}
+
+function parsePatterns(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }

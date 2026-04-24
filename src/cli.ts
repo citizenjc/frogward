@@ -6,11 +6,16 @@ export async function runCli(args: string[]): Promise<void> {
   await app.run(parseArgs(args));
 }
 
-function parseArgs(args: string[]): RunOptions {
-  const isProbe = args.includes('--probe') || args.includes('--check');
+export function parseArgs(args: string[]): RunOptions {
+  const hasCheck = args.includes('--check');
+  const hasProbe = args.includes('--probe');
+  const hasPoll = args.includes('--poll');
+  const hasForward = args.includes('--forward-new');
+  const isProbe = hasProbe || hasCheck;
+  const mode = hasCheck ? 'check' : hasPoll ? 'poll' : hasForward ? 'forward-new' : 'once';
 
   return {
-    mode: args.includes('--check') ? 'check' : 'once',
-    safetyLevel: isProbe ? 'probe' : 'forward'
+    mode,
+    safetyLevel: isProbe ? 'probe' : hasForward ? 'forward' : 'probe'
   };
 }

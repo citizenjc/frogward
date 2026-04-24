@@ -7,8 +7,10 @@ import type { BrowserSession } from './lib/browser.js';
 import { isAppError, ModuleError } from './lib/errors.js';
 import { createLogger } from './lib/logger.js';
 import { checkInbox } from './modules/check.js';
+import { decideForwardEligibility } from './modules/forward-filter.js';
 import { forwardMessage } from './modules/forward.js';
 import { loginToSapo } from './modules/login.js';
+import { createPollController } from './modules/poll.js';
 import { createStateStore } from './modules/state.js';
 import type { AppRuntime, RunOptions } from './types/runtime.js';
 
@@ -25,7 +27,8 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
         mode: options.mode,
         safetyLevel: options.safetyLevel,
         appMode: config.mode,
-        processedMessages: snapshot.processed.length
+        seenMessages: snapshot.seen.length,
+        forwardedMessages: snapshot.forwarded.length
       });
 
       await browser.withSession(async (session) => {
@@ -53,36 +56,132 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             await runModule('login', () => session.saveStorageState(storageStatePath));
           }
 
-          const listing = await runModule('check', () =>
-            checkInbox({ config, logger, page, state })
-          );
-          const messages = listing.messages;
+          const runSingleScan = async () =>
+            runModule('check', () => checkInbox({ config, logger, page, state }));
 
-          if (options.mode === 'check' || options.safetyLevel === 'probe') {
-            logger.info('app.check.complete', {
-              discoveredMessages: messages.length,
-              skippedAdRowCount: listing.probe.skippedAdRowCount,
-              parserFallbacksUsed: listing.probe.parserFallbacksUsed
+          if (options.mode === 'poll') {
+            logger.info('app.poll.start', {
+              pollIntervalMs: config.pollIntervalMs,
+              pollErrorBackoffMs: config.pollErrorBackoffMs
             });
+
+            const controller = createPollController({
+              check: runSingleScan,
+              logger,
+              config: {
+                pollIntervalMs: config.pollIntervalMs,
+                pollErrorBackoffMs: config.pollErrorBackoffMs
+              }
+            });
+
+            await waitForStopSignal(controller, logger);
             return;
           }
 
-          if (!config.destinationEmail) {
-            throw new ModuleError(
-              'forward',
-              'DESTINATION_EMAIL is required for forward safety mode.',
-              {
-                mode: options.mode,
-                safetyLevel: options.safetyLevel
+          const listing = await runSingleScan();
+          logger.info('app.check.complete', {
+            discoveredMessages: listing.messages.length,
+            newMessages: listing.newMessages?.length ?? 0,
+            alreadySeen: listing.alreadySeenMessages?.length ?? 0,
+            skippedAdRowCount: listing.probe.skippedAdRowCount,
+            parserFallbacksUsed: listing.probe.parserFallbacksUsed
+          });
+
+          if (options.mode === 'once' && options.safetyLevel === 'forward') {
+            logger.info('app.forward.deferred', {
+              reason: 'forwarding is intentionally out-of-scope for this milestone',
+              eligibleMessages: listing.newMessages?.length ?? 0
+            });
+          }
+
+          if (options.mode === 'forward-new') {
+            if (!config.forwardingEnabled || !config.forwardingAck || !config.forwardingWarpToken) {
+              throw new ModuleError('forward', 'Forwarding mode blocked by security gate.', {
+                forwardingEnabled: config.forwardingEnabled,
+                forwardingAck: config.forwardingAck,
+                hasWarpToken: Boolean(config.forwardingWarpToken)
+              });
+            }
+
+            if (!config.destinationEmail) {
+              throw new ModuleError('forward', 'DESTINATION_EMAIL is required for forward mode.');
+            }
+
+            const candidates = listing.newMessages ?? [];
+            logger.info('app.forward.start', { candidateCount: candidates.length });
+            const forwardedRecords = new Map(snapshot.forwarded.map((entry) => [entry.id, entry]));
+            const outcomeCounts = {
+              filtered: 0,
+              success: 0,
+              failed: 0
+            };
+
+            for (const message of candidates) {
+              const decision = decideForwardEligibility(message, config);
+              if (!decision.eligible) {
+                const record = {
+                  id: message.id,
+                  forwardedAt: new Date().toISOString(),
+                  destination: config.destinationEmail,
+                  status: 'filtered',
+                  reason: decision.reason,
+                  attempts: 0
+                } as const;
+                await state.markForwarded(record);
+                forwardedRecords.set(message.id, record);
+                outcomeCounts.filtered += 1;
+                logger.info('app.forward.filtered', {
+                  messageId: message.id,
+                  reason: decision.reason
+                });
+                continue;
               }
-            );
-          }
 
-          for (const message of messages) {
-            await runModule('forward', () => forwardMessage({ config, logger, page, message }));
-          }
+              const result = await runModule('forward', () =>
+                forwardMessage({ config, logger, page, message })
+              );
 
-          logger.info('app.once.complete', { processedMessages: messages.length });
+              if (result.status === 'success') {
+                const previousAttempts = forwardedRecords.get(message.id)?.attempts ?? 0;
+                const record = {
+                  id: message.id,
+                  forwardedAt: new Date().toISOString(),
+                  destination: config.destinationEmail,
+                  status: 'success',
+                  attempts: previousAttempts + 1
+                } as const;
+                await state.markForwarded(record);
+                forwardedRecords.set(message.id, record);
+                outcomeCounts.success += 1;
+                continue;
+              }
+
+              const previousAttempts = forwardedRecords.get(message.id)?.attempts ?? 0;
+              const record = {
+                id: message.id,
+                forwardedAt: new Date().toISOString(),
+                destination: config.destinationEmail,
+                status: 'failed',
+                reason: result.reason ?? 'forward_failed',
+                attempts: previousAttempts + 1
+              } as const;
+              await state.markForwarded(record);
+              forwardedRecords.set(message.id, record);
+              outcomeCounts.failed += 1;
+              logger.warn('app.forward.failed', {
+                messageId: message.id,
+                stage: result.stage ?? 'unknown',
+                reason: record.reason
+              });
+            }
+
+            logger.info('app.forward.complete', {
+              candidateCount: candidates.length,
+              filteredCount: outcomeCounts.filtered,
+              successCount: outcomeCounts.success,
+              failedCount: outcomeCounts.failed
+            });
+          }
         } catch (error) {
           failed = true;
           await captureFailureArtifacts(config, logger, session, tracePath);
@@ -114,13 +213,51 @@ async function captureFailureArtifacts(
   if (config.captureScreenshotOnFailure) {
     const screenshotPath = join(failureDir, `failure-${Date.now()}.png`);
     const outputPath = await session.page.screenshot(screenshotPath);
-    logger.error('app.failure.screenshot', { outputPath });
+    logger.error('app.failure.screenshot', summarizeArtifact(outputPath));
   }
 
   const htmlPath = join(failureDir, `failure-${Date.now()}.html`);
   const html = await session.page.content();
   await writeFile(htmlPath, html, 'utf8');
-  logger.error('app.failure.html', { htmlPath, tracePath });
+  logger.error('app.failure.html', {
+    html: summarizeArtifact(htmlPath),
+    trace: summarizeArtifact(tracePath)
+  });
+}
+
+function summarizeArtifact(filePath: string): {
+  fileName: string;
+  localOnly: boolean;
+  relativeDir: string;
+} {
+  const normalized = filePath.replaceAll('\\', '/');
+  const segments = normalized.split('/').filter(Boolean);
+  const fileName = segments.at(-1) ?? 'unknown';
+  const relativeDir = segments.slice(-2, -1)[0] ?? 'unknown';
+
+  return {
+    fileName,
+    localOnly: normalized.includes('/tmp/') || normalized.startsWith('tmp/'),
+    relativeDir
+  };
+}
+
+async function waitForStopSignal(
+  controller: { stop(): void },
+  logger: AppRuntime['logger']
+): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const handle = (): void => {
+      controller.stop();
+      logger.info('app.poll.stop-signal');
+      process.off('SIGINT', handle);
+      process.off('SIGTERM', handle);
+      resolve();
+    };
+
+    process.on('SIGINT', handle);
+    process.on('SIGTERM', handle);
+  });
 }
 
 async function runModule<T>(moduleName: string, operation: () => Promise<T>): Promise<T> {

@@ -7,11 +7,13 @@ Current probe-enabled scaffold shape:
 3. `src/app.ts` wires config, logging, browser lifecycle, state, login, inbox check, and forwarding boundaries.
 4. `src/config/*` loads `.env` values and validates typed runtime config.
 5. `src/modules/login.ts` performs auth reuse/interactive login checks and failure artifacts.
-6. `src/modules/check.ts` performs inbox reachability + read-only listing summary (no mutation).
+6. `src/modules/check.ts` performs inbox reachability + read-only listing summary + new-vs-seen detection (no mutation).
 7. `src/modules/forward.ts` remains separated and skipped in probe safety mode.
 8. `src/modules/inbox-parser.ts` parses inbox row HTML into typed summaries while skipping ad/promoted rows.
-9. `src/modules/state.ts` persists processed message ids to a local JSON file using atomic temp-file writes.
-10. `src/lib/*` holds shared browser, logger, and error infrastructure.
+9. `src/modules/new-mail-detector.ts` computes bootstrap/new/already-seen transitions against persisted seen state.
+10. `src/modules/poll.ts` orchestrates repeated read-only scan cycles with interval/backoff and lifecycle logs.
+11. `src/modules/state.ts` persists mailbox scan state (`seen`, `forwarded`, scan counters) to a local JSON file using atomic temp-file writes.
+12. `src/lib/*` holds shared browser, logger, and error infrastructure.
 
 Runtime flow:
 
@@ -41,14 +43,51 @@ Security gate for live auth/session work:
 - Storage state must stay under `tmp/*.auth.json`; refreshed session persistence can be disabled explicitly.
 - Failure traces are retained only on failed runs; successful runs should not leave trace artifacts behind.
 
+Forwarding mutation gate:
+
+- Explicit forwarding mode must be separately acknowledged via config gate flags.
+- Warp review token is required before live mutation mode can execute.
+- Read-only modes (`--check`, `--probe`, `--once`, `--poll`) remain non-mutating.
+
+Live shakedown gate:
+
+- Manual `--forward-new` runs require explicit Warp/security approval for the current revision.
+- Shakedown scenarios must include filtered/success/failure outcomes before any broader usage.
+- This gate is a stop condition, not optional guidance.
+
+Forwarding lifecycle boundary:
+
+- Only `newMessages` enter the forward pipeline.
+- Filter decisions happen before any mutation attempt.
+- `filtered`, `success`, and `failed` outcomes are persisted locally for operator review.
+- Only `success` counts as forwarded for dedupe purposes; failed attempts stay retry-visible.
+- Completion logs must report actual filtered/success/failed totals, not just candidate volume.
+- Success confirmation may come from explicit UI success signals or a verified Sent-folder fallback when the SAPO UI omits a reliable post-send toast.
+- Recipient safety requires the committed compose recipient chip/container to match `DESTINATION_EMAIL` before the send control is clicked.
+
 State notes:
 
 - State lives in a local JSON file configured by `STATE_FILE_PATH`
-- Missing files resolve to empty state
+- Missing files resolve to empty seen/forwarded+scan state
 - Invalid JSON is moved aside to `*.corrupt`
-- Duplicate processed ids are ignored
+- Duplicate seen ids are ignored
+- `seen` state is scan tracking; `forwarded` remains a separate lifecycle for a later milestone
 
-Milestone boundary: this architecture supports live login + inbox probe and diagnostics only; forwarding is still intentionally out of scope for live runs in this milestone.
+Manual shakedown boundary:
+
+- Live forwarding validation is operator-driven and local-only.
+- The supported shakedown flow is: probe first, then one narrowly scoped `--forward-new` run, then inspect state/logs/artifacts.
+- The architecture does not promise unattended recovery, delivery guarantees beyond the observed UI confirmation path, or CI-driven mutation.
+
+Milestone boundary: this architecture now supports a narrowly scoped live forwarding shakedown, not broad productionized forwarding.
+
+Explicitly deferred beyond this milestone:
+
+- spam-folder traversal or all-mail aggregation
+- hosted/background execution models
+- external persistence beyond local JSON state
+- delivery guarantees stronger than UI confirmation + manual mailbox check
+- broad architectural cleanup outside the forward-path seams
 
 Next-direction note (not implemented yet):
 

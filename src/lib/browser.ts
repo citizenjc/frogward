@@ -10,13 +10,20 @@ let stealthConfigured = false;
 export interface BrowserPage {
   goto(url: string): Promise<unknown>;
   fill(selector: string, value: string): Promise<void>;
+  pressKey(key: string): Promise<void>;
+  readFieldValue(selector: string): Promise<string | undefined>;
+  readInnerHtml(selector: string): Promise<string | undefined>;
   click(selector: string): Promise<void>;
+  clickFirst(selectors: string[]): Promise<boolean>;
+  clickFirstByText(texts: string[], selector?: string): Promise<string | undefined>;
+  waitForAnySelector(selectors: string[], timeoutMs?: number): Promise<string | undefined>;
   waitForSelector(selector: string, timeoutMs?: number): Promise<boolean>;
   isVisible(selector: string): Promise<boolean>;
   url(): string;
   title(): Promise<string>;
   screenshot(filePath: string): Promise<string>;
   content(): Promise<string>;
+  contentIncludesAny(markers: string[]): Promise<boolean>;
   visibleListHtml(listSelector: string): Promise<string | undefined>;
 }
 
@@ -40,6 +47,7 @@ interface BrowserManagerOptions {
 interface PlaywrightPageHandle {
   goto(url: string): Promise<unknown>;
   fill(selector: string, value: string): Promise<void>;
+  keyboard: { press(key: string): Promise<void> };
   click(selector: string): Promise<void>;
   waitForSelector(selector: string, options?: { timeout?: number }): Promise<unknown>;
   isVisible(selector: string): Promise<boolean>;
@@ -122,8 +130,29 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
       async fill(selector: string, value: string): Promise<void> {
         logger.debug('browser.stub.fill', { selector, valueLength: value.length });
       },
+      async pressKey(key: string): Promise<void> {
+        logger.debug('browser.stub.pressKey', { key });
+      },
+      async readFieldValue(): Promise<string | undefined> {
+        return undefined;
+      },
+      async readInnerHtml(): Promise<string | undefined> {
+        return undefined;
+      },
       async click(selector: string): Promise<void> {
         logger.debug('browser.stub.click', { selector });
+      },
+      async clickFirst(selectors: string[]): Promise<boolean> {
+        logger.debug('browser.stub.clickFirst', { selectors });
+        return selectors.length > 0;
+      },
+      async clickFirstByText(texts: string[]): Promise<string | undefined> {
+        logger.debug('browser.stub.clickFirstByText', { texts });
+        return texts[0];
+      },
+      async waitForAnySelector(selectors: string[]): Promise<string | undefined> {
+        logger.debug('browser.stub.waitForAnySelector', { selectors });
+        return selectors.length > 0 ? selectors[0] : undefined;
       },
       async waitForSelector(selector: string): Promise<boolean> {
         logger.debug('browser.stub.waitForSelector', { selector });
@@ -146,6 +175,10 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
       },
       async content(): Promise<string> {
         return '<html><body>stub page</body></html>';
+      },
+      async contentIncludesAny(markers: string[]): Promise<boolean> {
+        logger.debug('browser.stub.contentIncludesAny', { markerCount: markers.length });
+        return markers.length > 0;
       },
       async visibleListHtml(listSelector: string): Promise<string> {
         logger.debug('browser.stub.visibleListHtml', { listSelector });
@@ -183,8 +216,116 @@ function createPlaywrightSession(
       fill(selector: string, value: string): Promise<void> {
         return page.fill(selector, value);
       },
+      pressKey(key: string): Promise<void> {
+        return page.keyboard.press(key);
+      },
+      async readFieldValue(selector: string): Promise<string | undefined> {
+        const result = await page.evaluate(
+          `(${((targetSelector: string) => {
+            const element = document.querySelector(targetSelector);
+            if (!element) return undefined;
+
+            if (
+              element instanceof HTMLInputElement ||
+              element instanceof HTMLTextAreaElement ||
+              element instanceof HTMLSelectElement
+            ) {
+              return element.value;
+            }
+
+            return element.textContent?.trim() || undefined;
+          }).toString()})(${JSON.stringify(selector)})`
+        );
+
+        return typeof result === 'string' ? result : undefined;
+      },
+      async readInnerHtml(selector: string): Promise<string | undefined> {
+        const result = await page.evaluate(
+          `(${((targetSelector: string) => {
+            const element = document.querySelector(targetSelector);
+            return element?.innerHTML ?? undefined;
+          }).toString()})(${JSON.stringify(selector)})`
+        );
+
+        return typeof result === 'string' ? result : undefined;
+      },
       click(selector: string): Promise<void> {
         return page.click(selector);
+      },
+      async clickFirst(selectors: string[]): Promise<boolean> {
+        for (const selector of selectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: 1_500 });
+            await page.click(selector);
+            return true;
+          } catch {
+            continue;
+          }
+        }
+
+        return false;
+      },
+      async clickFirstByText(
+        texts: string[],
+        selector = 'button, a, span, small, [role="button"], .clear.button'
+      ): Promise<string | undefined> {
+        const result = await page.evaluate(
+          `(${((candidateTexts: string[], rootSelector: string) => {
+            const normalizedTexts = candidateTexts.map((text) => text.trim().toLowerCase());
+            const elements = Array.from(document.querySelectorAll(rootSelector));
+
+            for (const element of elements) {
+              const text = (element.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+              if (!text) continue;
+
+              const matched = normalizedTexts.find(
+                (candidate) => text === candidate || text.includes(candidate)
+              );
+              if (!matched) continue;
+
+              const clickable =
+                element.closest('[role="button"], button, a, .clear.button') || element;
+
+              if (clickable instanceof HTMLElement) {
+                const style = window.getComputedStyle(clickable);
+                const rect = clickable.getBoundingClientRect();
+                const visibleEnough =
+                  style.display !== 'none' &&
+                  style.visibility !== 'hidden' &&
+                  style.opacity !== '0' &&
+                  rect.width > 0 &&
+                  rect.height > 0;
+
+                if (!visibleEnough) {
+                  continue;
+                }
+
+                clickable.scrollIntoView({ block: 'center', inline: 'center' });
+                clickable.click();
+                return matched;
+              }
+            }
+
+            return undefined;
+          }).toString()})(${JSON.stringify(texts)}, ${JSON.stringify(selector)})`
+        );
+
+        return typeof result === 'string' ? result : undefined;
+      },
+      async waitForAnySelector(
+        selectors: string[],
+        timeoutMs = 10_000
+      ): Promise<string | undefined> {
+        for (const selector of selectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: timeoutMs });
+            return selector;
+          } catch {
+            continue;
+          }
+        }
+
+        return undefined;
       },
       async waitForSelector(selector: string, timeoutMs = 10_000): Promise<boolean> {
         try {
@@ -211,40 +352,71 @@ function createPlaywrightSession(
       content(): Promise<string> {
         return page.content();
       },
+      async contentIncludesAny(markers: string[]): Promise<boolean> {
+        if (markers.length === 0) {
+          return false;
+        }
+
+        const pageHtml = (await page.content()).toLowerCase();
+        return markers.some((marker) => pageHtml.includes(marker.toLowerCase()));
+      },
       async visibleListHtml(listSelector: string): Promise<string | undefined> {
-        const selectorLiteral = JSON.stringify(listSelector);
-        const result = await page.evaluate(`(() => {
-            const root = document.querySelector(${selectorLiteral});
+        const result = await page.evaluate(
+          `(${((selector: string) => {
+            const root = document.querySelector(selector);
             if (!root) return undefined;
 
             const nodes = Array.from(root.querySelectorAll('div, li')).filter((node) => {
               const cls = (node.getAttribute('class') || '').toLowerCase();
-              return cls.includes('mail-item') || cls.includes('message-row') || cls.includes('thread-row') || cls.includes('list-item');
+              return (
+                cls.includes('mail-item') ||
+                cls.includes('message-row') ||
+                cls.includes('thread-row') ||
+                cls.includes('list-item')
+              );
             });
+
+            const escape = (value: string): string =>
+              value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
             const normalizedRows = nodes.map((node) => {
               const cls = (node.getAttribute('class') || '').toLowerCase();
               const isUnread = cls.includes('unread');
               const from = node.querySelector('.from')?.textContent?.trim() || '';
               const subject = node.querySelector('.subject')?.textContent?.trim() || '';
-              const datetime = node.querySelector('.datetime, .date, .time')?.textContent?.trim() || '';
+              const datetime =
+                node.querySelector('.datetime, .date, .time')?.textContent?.trim() || '';
               const preview = node.querySelector('.preview, .snippet')?.textContent?.trim() || '';
               const inputId = node.querySelector('input[id]')?.getAttribute('id') || '';
-              const rowType = cls.includes('ad') || cls.includes('adds-messages-list') ? 'ad' : 'message';
+              const rowType =
+                cls.includes('ad') || cls.includes('adds-messages-list') ? 'ad' : 'message';
 
-              return '<div class="mail-item ' + cls.split(' ').filter(Boolean).join(' ').trim() + '"' +
-                (inputId ? ' data-id="' + inputId + '"' : '') +
+              return (
+                '<div class="mail-item ' +
+                cls.split(' ').filter(Boolean).join(' ').trim() +
+                '"' +
+                (inputId ? ' data-id="' + escape(inputId) + '"' : '') +
                 (isUnread ? ' data-unread="true"' : '') +
-                ' data-row-type="' + rowType + '">' +
-                '<span class="from">' + from.replace(/</g, '&lt;') + '</span>' +
-                '<span class="subject">' + subject.replace(/</g, '&lt;') + '</span>' +
-                '<span class="datetime">' + datetime.replace(/</g, '&lt;') + '</span>' +
-                (preview ? '<span class="preview">' + preview.replace(/</g, '&lt;') + '</span>' : '') +
-                '</div>';
+                ' data-row-type="' +
+                rowType +
+                '">' +
+                '<span class="from">' +
+                escape(from) +
+                '</span>' +
+                '<span class="subject">' +
+                escape(subject) +
+                '</span>' +
+                '<span class="datetime">' +
+                escape(datetime) +
+                '</span>' +
+                (preview ? '<span class="preview">' + escape(preview) + '</span>' : '') +
+                '</div>'
+              );
             });
 
             return normalizedRows.join('\n');
-          })()`);
+          }).toString()})(${JSON.stringify(listSelector)})`
+        );
 
         return typeof result === 'string' && result.length > 0 ? result : undefined;
       }

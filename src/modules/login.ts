@@ -22,6 +22,7 @@ export async function loginToSapo({
   });
 
   await page.goto('https://mail.sapo.pt/v7/#/messages/SU5CT1g');
+  await handleKnownInterstitials(page);
   logger.info('sapo.login.after_inbox_probe', { url: page.url() });
 
   if (await isAuthenticated(page)) {
@@ -171,6 +172,7 @@ async function handleKnownInterstitials(page: BrowserPage): Promise<void> {
   const consentSelectors = [
     'button:has-text("Accept")',
     'button:has-text("Aceitar")',
+    'button:has-text("ACEITAR")',
     'button#onetrust-accept-btn-handler'
   ];
 

@@ -25,6 +25,55 @@ describe('config schema', () => {
       expect(result.value.destinationEmail).toBeUndefined();
       expect(result.value.artifactDir).toBe('tmp/live-artifacts');
       expect(result.value.persistStorageState).toBe(true);
+      expect(result.value.pollErrorBackoffMs).toBe(5000);
+      expect(result.value.forwardingEnabled).toBe(false);
+      expect(result.value.forwardingAck).toBe(false);
+      expect(result.value.forwardAllowSenderPatterns).toEqual([]);
+      expect(result.value.forwardBlockSenderPatterns).toEqual([]);
+      expect(result.value.forwardAllowSubjectPatterns).toEqual([]);
+      expect(result.value.forwardBlockSubjectPatterns).toEqual([]);
+    }
+  });
+
+  it('requires forwarding ack and warp token when forwarding is enabled', () => {
+    const result = parseConfig({
+      FORWARDING_ENABLED: 'true'
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain('FORWARDING_ACK must be true when FORWARDING_ENABLED=true');
+      expect(result.error).toContain(
+        'FORWARDING_WARP_TOKEN is required when FORWARDING_ENABLED=true'
+      );
+    }
+  });
+
+  it('parses forwarding filter patterns from env', () => {
+    const result = parseConfig({
+      FORWARD_ALLOW_SENDERS: 'bpi,revolut',
+      FORWARD_BLOCK_SENDERS: 'spam@',
+      FORWARD_ALLOW_SUBJECTS: 'critical,alert',
+      FORWARD_BLOCK_SUBJECTS: 'marketing'
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.forwardAllowSenderPatterns).toEqual(['bpi', 'revolut']);
+      expect(result.value.forwardBlockSenderPatterns).toEqual(['spam@']);
+      expect(result.value.forwardAllowSubjectPatterns).toEqual(['critical', 'alert']);
+      expect(result.value.forwardBlockSubjectPatterns).toEqual(['marketing']);
+    }
+  });
+
+  it('rejects invalid polling backoff', () => {
+    const result = parseConfig({
+      POLL_ERROR_BACKOFF_MS: '500'
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toContain('POLL_ERROR_BACKOFF_MS must be a number >= 1000');
     }
   });
 

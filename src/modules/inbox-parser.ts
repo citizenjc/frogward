@@ -128,7 +128,9 @@ function parseMessageRow(row: RawRow, parserFallbacksUsed: Set<string>): Message
     source:
       row.attributes['data-message-id'] || row.attributes['data-id']
         ? 'sapo-row-id'
-        : 'subject-time-hash',
+        : extractByRegex(row.html, /<input[^>]*id="([^"]+)"/i)
+          ? 'dom-fallback'
+          : 'subject-time-hash',
     confidence:
       row.attributes['data-message-id'] || row.attributes['data-id']
         ? 'high'
