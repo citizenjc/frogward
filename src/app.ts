@@ -53,12 +53,17 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             await runModule('login', () => session.saveStorageState(storageStatePath));
           }
 
-          const messages = await runModule('check', () =>
+          const listing = await runModule('check', () =>
             checkInbox({ config, logger, page, state })
           );
+          const messages = listing.messages;
 
           if (options.mode === 'check' || options.safetyLevel === 'probe') {
-            logger.info('app.check.complete', { discoveredMessages: messages.length });
+            logger.info('app.check.complete', {
+              discoveredMessages: messages.length,
+              skippedAdRowCount: listing.probe.skippedAdRowCount,
+              parserFallbacksUsed: listing.probe.parserFallbacksUsed
+            });
             return;
           }
 

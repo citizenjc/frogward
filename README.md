@@ -10,6 +10,19 @@ Frogward is intended to run on a home server and automate `mail.sapo.pt` via the
 
 Live probe milestone in progress: login + inbox reachability verification without forwarding.
 
+Read-only inbox listing milestone in progress: parse list-surface message rows and skip ad/promoted rows without opening messages.
+
+## Current read-only listing contract (in progress)
+
+Inbox list parsing is list-surface only and does **not** open messages.
+
+Planned summary fields:
+
+- required: `id`, `from`, `subject`, `receivedAt`
+- optional: `isUnread`, `preview`, `folder`, `rowType`, `source`, `confidence`
+
+This model intentionally differs from any future “opened full message” schema.
+
 ## Stack
 
 - Node.js 20+
@@ -83,6 +96,7 @@ Current format:
 - Email-like values and secret-shaped fields are redacted before log output.
 - Config, browser, and module failures use centralized app error types.
 - Fatal startup/runtime failures exit non-zero and include whether the failure is retryable.
+- Probe summary logs should prefer counts and redacted samples over full mailbox row dumps.
 
 ## Security notes
 
@@ -150,6 +164,24 @@ Expected outcome for this milestone: login + inbox reachability only, no message
 - Avoid duplicate forwarding
 - Be simple to self-host
 
+## Later implementation notes
+
+- Check the spam folder too; SAPO has historically aggressive/poor spam filtering.
+- Consider exposing or simulating an “all mail” style view if the UI allows it, so filtering can be handled by Frogward instead of SAPO alone.
+- Consider adding local spam heuristics/scoring later instead of trusting SAPO folder placement as the source of truth.
+
+### Future scope boundary (not implemented in this milestone)
+
+- Inbox listing currently targets inbox rows only.
+- Spam-folder traversal is intentionally deferred.
+- Any all-mail aggregation and local spam heuristics belong to a later milestone after inbox parser stability is proven.
+
 ## Development notes
 
 Initial repo setup only. Implementation to follow.
+
+### Inbox fixture policy
+
+- Fixture files under `tests/fixtures/sapo/` must be sanitized before commit.
+- Never commit real mailbox content, credentials, addresses, cookies, or session tokens.
+- Fixtures should be synthetic/minimized samples that preserve selector shape and ad-row edge cases only.

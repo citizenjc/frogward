@@ -1,6 +1,8 @@
-# SAPO Selector Notes (Live Probe Milestone)
+# SAPO Selector Notes (Live Probe + Read-Only Listing)
 
 These notes capture the current selector strategy for **login + inbox reachability probe only**.
+
+Current milestone also includes read-only inbox row listing/parsing.
 
 ## Goals
 
@@ -62,3 +64,21 @@ Selectors and interactions in this milestone must remain login/inbox-surface onl
 - do not open message rows,
 - do not click forward/reply/delete/archive controls,
 - do not perform mutation actions.
+
+## Inbox listing extraction notes (read-only)
+
+Row detection currently targets list-surface row classes:
+
+- `mail-item`
+- `message-row`
+- `thread-row`
+
+Ad/sponsored skip signals:
+
+- row class token equals one of: `ad`, `ads`, `sponsored`, `promo`, `publicidade`
+- row text includes markers like `publicidade`, `patrocinado`, `sponsored`, `anúncio`
+- fallback: `pub` marker in text with no detectable sender/subject fields
+
+Non-goal reminder for this milestone:
+
+- listing must remain read-only and avoid opening message rows.

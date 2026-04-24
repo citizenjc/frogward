@@ -17,6 +17,7 @@ export interface BrowserPage {
   title(): Promise<string>;
   screenshot(filePath: string): Promise<string>;
   content(): Promise<string>;
+  visibleListHtml(listSelector: string): Promise<string | undefined>;
 }
 
 export interface BrowserSession {
@@ -46,6 +47,7 @@ interface PlaywrightPageHandle {
   title(): Promise<string>;
   screenshot(options: { path: string; fullPage?: boolean }): Promise<unknown>;
   content(): Promise<string>;
+  evaluate(script: string): Promise<unknown>;
 }
 
 interface BrowserContextHandle {
@@ -144,6 +146,10 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
       },
       async content(): Promise<string> {
         return '<html><body>stub page</body></html>';
+      },
+      async visibleListHtml(listSelector: string): Promise<string> {
+        logger.debug('browser.stub.visibleListHtml', { listSelector });
+        return '<div class="mail-item" data-message-id="stub-1"><span class="from">Stub</span><span class="subject">Stub message</span><span class="date">now</span></div>';
       }
     },
     async startTrace(name: string): Promise<void> {
@@ -204,6 +210,43 @@ function createPlaywrightSession(
       },
       content(): Promise<string> {
         return page.content();
+      },
+      async visibleListHtml(listSelector: string): Promise<string | undefined> {
+        const selectorLiteral = JSON.stringify(listSelector);
+        const result = await page.evaluate(`(() => {
+            const root = document.querySelector(${selectorLiteral});
+            if (!root) return undefined;
+
+            const nodes = Array.from(root.querySelectorAll('div, li')).filter((node) => {
+              const cls = (node.getAttribute('class') || '').toLowerCase();
+              return cls.includes('mail-item') || cls.includes('message-row') || cls.includes('thread-row') || cls.includes('list-item');
+            });
+
+            const normalizedRows = nodes.map((node) => {
+              const cls = (node.getAttribute('class') || '').toLowerCase();
+              const isUnread = cls.includes('unread');
+              const from = node.querySelector('.from')?.textContent?.trim() || '';
+              const subject = node.querySelector('.subject')?.textContent?.trim() || '';
+              const datetime = node.querySelector('.datetime, .date, .time')?.textContent?.trim() || '';
+              const preview = node.querySelector('.preview, .snippet')?.textContent?.trim() || '';
+              const inputId = node.querySelector('input[id]')?.getAttribute('id') || '';
+              const rowType = cls.includes('ad') || cls.includes('adds-messages-list') ? 'ad' : 'message';
+
+              return '<div class="mail-item ' + cls.split(' ').filter(Boolean).join(' ').trim() + '"' +
+                (inputId ? ' data-id="' + inputId + '"' : '') +
+                (isUnread ? ' data-unread="true"' : '') +
+                ' data-row-type="' + rowType + '">' +
+                '<span class="from">' + from.replace(/</g, '&lt;') + '</span>' +
+                '<span class="subject">' + subject.replace(/</g, '&lt;') + '</span>' +
+                '<span class="datetime">' + datetime.replace(/</g, '&lt;') + '</span>' +
+                (preview ? '<span class="preview">' + preview.replace(/</g, '&lt;') + '</span>' : '') +
+                '</div>';
+            });
+
+            return normalizedRows.join('\n');
+          })()`);
+
+        return typeof result === 'string' && result.length > 0 ? result : undefined;
       }
     },
     async startTrace(name: string): Promise<void> {

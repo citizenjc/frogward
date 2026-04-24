@@ -78,4 +78,31 @@ describe('browser wrapper', () => {
       'frogward-stub'
     );
   });
+
+  it('provides read-only list extraction seam in scaffold mode', async () => {
+    const browser = createBrowserManager({
+      config: {
+        mode: 'scaffold',
+        sapoUsername: '',
+        sapoPassword: '',
+        destinationEmail: undefined,
+        pollIntervalMs: 60000,
+        headless: true,
+        stateFilePath: 'src/state/runtime-state.json',
+        storageStatePath: 'tmp/sapo/session.auth.json',
+        persistStorageState: true,
+        artifactDir: 'tmp/live-artifacts',
+        captureScreenshotOnFailure: true,
+        captureTraceOnFailure: true,
+        logLevel: 'debug'
+      },
+      logger: createLogger('debug')
+    });
+
+    await expect(
+      browser.withSession(async (session) =>
+        session.page.visibleListHtml('[data-test="inbox-list"]')
+      )
+    ).resolves.toContain('mail-item');
+  });
 });

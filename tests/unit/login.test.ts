@@ -37,6 +37,7 @@ describe('login module', () => {
         url: vi.fn().mockReturnValue('https://mail.sapo.pt/inbox'),
         title: vi.fn().mockResolvedValue('Inbox'),
         screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/auth/failure.png'),
+        visibleListHtml: vi.fn().mockResolvedValue(undefined),
         content: vi.fn().mockResolvedValue('<html></html>')
       }
     });
@@ -78,6 +79,7 @@ describe('login module', () => {
           url: vi.fn().mockReturnValue('https://mail.sapo.pt/login'),
           title: vi.fn().mockResolvedValue('Login'),
           screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/auth/failure.png'),
+          visibleListHtml: vi.fn().mockResolvedValue(undefined),
           content: vi.fn().mockResolvedValue('<html></html>')
         }
       })

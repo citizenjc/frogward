@@ -21,9 +21,12 @@ describe('check module', () => {
       url: vi.fn().mockReturnValue('https://mail.sapo.pt/inbox'),
       title: vi.fn().mockResolvedValue('Inbox'),
       screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/check.png'),
-      content: vi
+      visibleListHtml: vi
         .fn()
-        .mockResolvedValue('<div data-message-id="a"></div><div data-message-id="b"></div>')
+        .mockResolvedValue(
+          '<div class="mail-item unread" data-message-id="a"><span class="from">Banco BPI</span><span class="subject">Atualização da conta</span><span class="date">10:00</span></div><div class="mail-item" data-message-id="b"><span class="from">NOS</span><span class="subject">Fatura disponível</span><span class="date">10:10</span></div>'
+        ),
+      content: vi.fn().mockResolvedValue('<html></html>')
     };
 
     const state = {
@@ -54,11 +57,16 @@ describe('check module', () => {
       state
     });
 
-    expect(result).toEqual([]);
+    expect(result.messages).toHaveLength(2);
     expect(page.click).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(
       'sapo.check.probe_summary',
-      expect.objectContaining({ inboxReached: true, visibleMessageCount: 2 })
+      expect.objectContaining({
+        inboxReached: true,
+        visibleMessageCount: 2,
+        parsedMessageCount: 2,
+        skippedAdRowCount: 0
+      })
     );
   });
 
@@ -95,6 +103,7 @@ describe('check module', () => {
           url: vi.fn().mockReturnValue('https://mail.sapo.pt/login'),
           title: vi.fn().mockResolvedValue('Login'),
           screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/check.png'),
+          visibleListHtml: vi.fn().mockResolvedValue(undefined),
           content: vi.fn().mockResolvedValue('<html></html>')
         },
         state: {
@@ -105,5 +114,67 @@ describe('check module', () => {
         }
       })
     ).rejects.toBeInstanceOf(ModuleError);
+  });
+
+  it('returns empty parsed list when only ad rows are visible', async () => {
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const page = {
+      goto: vi.fn().mockResolvedValue(null),
+      fill: vi.fn().mockResolvedValue(undefined),
+      click: vi.fn().mockResolvedValue(undefined),
+      waitForSelector: vi.fn().mockResolvedValue(true),
+      isVisible: vi.fn().mockResolvedValue(true),
+      url: vi.fn().mockReturnValue('https://mail.sapo.pt/v7/#/messages/SU5CT1g'),
+      title: vi.fn().mockResolvedValue('(2) Caixa de Entrada - SAPO MAIL'),
+      screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/check.png'),
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item ad"><span class="subject">Publicidade especial</span></div>'
+        ),
+      content: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item ad"><span class="subject">Publicidade</span></div>'
+        )
+    };
+
+    const state = {
+      load: vi.fn().mockResolvedValue({ processed: [] }),
+      save: vi.fn().mockResolvedValue(undefined),
+      hasProcessed: vi.fn().mockResolvedValue(false),
+      markProcessed: vi.fn().mockResolvedValue({ processed: [] })
+    };
+
+    const result = await checkInbox({
+      config: {
+        mode: 'live',
+        sapoUsername: 'user@example.com',
+        sapoPassword: 'secret',
+        destinationEmail: undefined,
+        pollIntervalMs: 60000,
+        headless: true,
+        stateFilePath: 'src/state/runtime-state.json',
+        storageStatePath: 'tmp/sapo/session.auth.json',
+        persistStorageState: true,
+        artifactDir: 'tmp/live-artifacts',
+        captureScreenshotOnFailure: true,
+        captureTraceOnFailure: true,
+        logLevel: 'info'
+      },
+      logger,
+      page,
+      state
+    });
+
+    expect(result.messages).toEqual([]);
+    expect(result.probe.skippedAdRowCount).toBe(1);
+    expect(page.click).not.toHaveBeenCalled();
   });
 });
