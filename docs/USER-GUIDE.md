@@ -8,15 +8,23 @@ It uses the SAPO website directly, so it can still work even when normal forward
 
 ## The main way to use it
 
-Run Frogward in service mode:
+For most people, the easiest way is Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+That runs Frogward continuously as the service.
+
+## Local run (without Docker)
+
+If you prefer to run it directly:
 
 ```bash
 npm run dev -- --service
 ```
 
-That keeps it running, checking for new mail and forwarding matching messages automatically.
-
-This is the normal mode most people should use.
+That also keeps it running, checking for new mail and forwarding matching messages automatically.
 
 ## Before you start
 
@@ -35,14 +43,6 @@ After that, turn on forwarding by setting:
 - `FORWARDING_ENABLED=true`
 
 Advanced forwarding and troubleshooting options are covered in the other docs.
-
-## Main command
-
-Run continuously as the service:
-
-```bash
-npm run dev -- --service
-```
 
 If you want developer or troubleshooting commands, see the [Development](./DEVELOPMENT.md) guide.
 

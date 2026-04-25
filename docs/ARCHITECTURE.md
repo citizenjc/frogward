@@ -1,9 +1,9 @@
 # Architecture
 
-Current probe-enabled scaffold shape:
+Current service-first architecture:
 
 1. `src/index.ts` starts the CLI entrypoint.
-2. `src/cli.ts` parses run mode and safety level (`--check` / `--probe` => probe safety).
+2. `src/cli.ts` parses run mode and safety level (`--service` is the real unattended mode).
 3. `src/app.ts` wires config, logging, browser lifecycle, state, login, inbox check, and forwarding boundaries.
 4. `src/config/*` loads `.env` values and validates typed runtime config.
 5. `src/modules/login.ts` performs auth reuse/interactive login checks and failure artifacts.
@@ -19,9 +19,9 @@ Runtime flow:
 
 1. Load validated config
 2. Initialize logger and state store
-3. Start a stub browser in scaffold mode, or real Playwright in live mode
-4. Run SAPO login placeholder
-5. Run inbox check placeholder
+3. Start Playwright in live mode by default (stub browser remains an internal test/dev path)
+4. Run SAPO login
+5. Run inbox check
 6. In probe safety (`--check` or `--probe`), stop after reporting discovered messages
 7. In explicit mutation modes (`--forward-new` and `--service`), pass discovered new messages to the forwarding pipeline
 8. In live mode, capture debug artifacts (trace, optional screenshot/html) only under `tmp/` gitignored paths
@@ -85,7 +85,7 @@ Manual shakedown boundary:
 - The supported shakedown flow is: probe first, then one narrowly scoped `--forward-new` run, then inspect state/logs/artifacts.
 - The architecture does not promise unattended recovery, delivery guarantees beyond the observed UI confirmation path, or CI-driven mutation.
 
-Milestone boundary: this architecture now supports a narrowly scoped live forwarding shakedown, not broad productionized forwarding.
+Milestone boundary: this architecture now supports the actual always-on service mode plus the previously proven live forwarding shakedown, but it is still a small self-hosted service rather than a broader hosted product.
 
 Explicitly deferred beyond this milestone:
 

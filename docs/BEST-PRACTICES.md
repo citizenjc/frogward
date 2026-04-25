@@ -2,6 +2,7 @@
 
 ## For normal users
 
+- prefer Docker Compose for day-to-day use
 - run Frogward in `--service` mode
 - keep your `.env` private
 - keep `tmp/` persistent so session/state survive restarts

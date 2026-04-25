@@ -14,6 +14,8 @@ Stop it:
 docker compose down
 ```
 
+This is the preferred way to run Frogward as the real service.
+
 ## Local development
 
 For development, just run Frogward directly:
@@ -22,6 +24,8 @@ For development, just run Frogward directly:
 npm install
 npm run dev -- --service
 ```
+
+This is mainly for development, debugging, or people who do not want Docker.
 
 ## Docker
 
@@ -37,6 +41,7 @@ docker run --rm -it --env-file .env -v "$(pwd)/tmp:/app/tmp" frogward
 - `tmp/` is mounted so session state and runtime files persist
 - `.env` is used for secrets and settings
 - the default container command runs `--service`
+- headless mode is the normal default
 
 ## Minimal real setup
 
@@ -47,6 +52,8 @@ For a normal deployment, the only values you realistically need to think about f
 - `DESTINATION_EMAIL`
 
 Keep the rest on defaults until you actually need to tune them.
+
+To actually allow forwarding, also enable it in `.env` when you are ready.
 
 ## Good next deployment steps
 
