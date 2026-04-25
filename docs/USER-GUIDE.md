@@ -22,17 +22,20 @@ This is the normal mode most people should use.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO login and destination email
-3. Turn on forwarding in `.env`
+3. Set `APP_MODE=live`
+4. Turn on forwarding in `.env`
 
-Important values:
+Minimum values for a normal first run:
 
-- `APP_MODE=live`
 - `SAPO_USERNAME=...`
 - `SAPO_PASSWORD=...`
 - `DESTINATION_EMAIL=...`
+
+After that, turn on forwarding by setting:
+
 - `FORWARDING_ENABLED=true`
-- `FORWARDING_ACK=true`
-- `FORWARDING_WARP_TOKEN=...`
+
+Advanced forwarding and troubleshooting options are covered in the other docs.
 
 ## Main command
 

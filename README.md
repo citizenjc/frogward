@@ -16,41 +16,57 @@ Frogward:
 - remembers what already worked
 - keeps running as a small always-on service
 
-## The main way to run it
+## Install and run with Docker Compose
 
-```bash
-npm install
-npm run dev -- --service
-```
-
-That is the normal “real use” command.
-
-## Quick setup
+This is the recommended setup for most people.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO email, password, and destination email
-3. Turn forwarding on in `.env`
-4. Start Frogward with `--service`
+3. Set `APP_MODE=live`
+4. Turn forwarding on in `.env`
+5. Start Frogward:
 
-Minimum `.env` values:
+```bash
+docker compose up -d --build
+```
+
+Stop it:
+
+```bash
+docker compose down
+```
+
+## Minimum setup values
+
+These are the only values most people need to care about at first:
 
 ```env
 APP_MODE=live
 SAPO_USERNAME=your-sapo-email
 SAPO_PASSWORD=your-password
 DESTINATION_EMAIL=your-other-email@example.com
-FORWARDING_ENABLED=true
-FORWARDING_ACK=true
-FORWARDING_WARP_TOKEN=approved-local-run
 ```
 
-## Docker / Compose
+Everything else can stay on the defaults when you are starting out.
 
-Frogward can also be deployed with Docker.
+## Run it locally without Docker
+
+Useful for development or if you do not want Docker.
 
 ```bash
-docker compose up -d --build
+npm install
+npm run dev -- --service
 ```
+
+## What it needs to run
+
+Frogward only works while the service is running.
+
+That means one of these needs to be active:
+
+- `docker compose up -d`
+- `npm run dev -- --service`
+- another process runner you choose
 
 ## Who this is for
 
@@ -95,9 +111,4 @@ Developer / advanced docs:
 
 ## Important note
 
-Frogward is now a working always-on app mode, but it only runs when **you start it**.
-
-For example:
-
-- local/dev use: `npm run dev -- --service`
-- deployment use: docker / compose / another process runner
+Frogward is a real always-on service mode now, but it still needs to be started by you (or by Docker / another runner).
