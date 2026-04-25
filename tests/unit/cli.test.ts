@@ -23,4 +23,11 @@ describe('cli argument parsing', () => {
       safetyLevel: 'probe'
     });
   });
+
+  it('parses service mode as continuous forward automation', () => {
+    expect(parseArgs(['--service'])).toEqual({
+      mode: 'service',
+      safetyLevel: 'forward'
+    });
+  });
 });

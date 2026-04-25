@@ -48,6 +48,7 @@ This model intentionally differs from any future “opened full message” schem
 - `npm run dev -- --probe` — run explicit probe-only path (never calls forwarding)
 - `npm run dev -- --once` — run a single stateful read-only scan
 - `npm run dev -- --poll` — run repeated stateful read-only scans on interval
+- `npm run dev -- --service` — run the always-on auto-forward service (poll + forward continuously)
 - `npm run lint` — run ESLint
 - `npm run typecheck` — run TypeScript checks
 - `npm run test` — run unit tests
@@ -213,6 +214,7 @@ Expected outcome for this milestone: one narrowly scoped, operator-driven live f
 ## Forwarding mode notes
 
 - `--forward-new` is the only mutation-capable mode.
+- `--service` is the always-on mutation mode and continuously polls + forwards eligible new mail.
 - `--once`, `--poll`, `--check`, and `--probe` remain read-only.
 - Forward filters are substring-based and applied before any forward action.
 - Filtered messages may be recorded as `filtered`; failed sends remain unforwarded and retry-eligible.
@@ -221,6 +223,43 @@ Expected outcome for this milestone: one narrowly scoped, operator-driven live f
 ### Forward selector reality note
 
 Current live SAPO UI observations show row-level ids via checkbox/input ids and standard row classes, but no stable forwarding data-test hooks in the observed inbox view. Forwarding logic must therefore use fallback selector chains and explicit post-action confirmation checks.
+
+## Running Frogward as the actual service
+
+If you want new mail to be forwarded automatically, run:
+
+- `npm run dev -- --service`
+
+What `--service` does:
+
+1. logs into SAPO / reuses session state
+2. polls the inbox continuously on `POLL_INTERVAL_MS`
+3. detects newly seen messages
+4. applies forward allow/block filters
+5. forwards eligible mail automatically
+6. records `filtered`, `success`, or `failed` state locally
+7. retries failed forwards on future cycles, but never re-forwards messages already marked `success`
+
+Required env for service mode:
+
+- `APP_MODE=live`
+- `SAPO_USERNAME=...`
+- `SAPO_PASSWORD=...`
+- `DESTINATION_EMAIL=...`
+- `FORWARDING_ENABLED=true`
+- `FORWARDING_ACK=true`
+- `FORWARDING_WARP_TOKEN=...`
+
+Recommended env for service mode:
+
+- `STATE_FILE_PATH=tmp/sapo/runtime-state.json`
+- `STORAGE_STATE_PATH=tmp/sapo/session.auth.json`
+- `ARTIFACT_DIR=tmp/live-artifacts`
+- `HEADLESS=true`
+
+Current operational note:
+
+- `--service` is the app-level always-on mode, but you still need to keep the process alive with your preferred runner (systemd, pm2, docker restart policy, etc.).
 
 ## Manual live forwarding shakedown runbook
 

@@ -6,22 +6,27 @@ import type { InboxListingResult, PollCycleSummary } from '../types/runtime.js';
 
 export interface PollController {
   stop(): void;
+  waitUntilStopped(): Promise<void>;
 }
 
 export interface PollDependencies {
   check: () => Promise<InboxListingResult>;
   logger: Logger;
   config: Pick<AppConfig, 'pollIntervalMs' | 'pollErrorBackoffMs'>;
+  afterCheck?: (result: InboxListingResult) => Promise<void>;
 }
 
 export function createPollController(deps: PollDependencies): PollController {
   let stopped = false;
 
-  void runLoop();
+  const loopPromise = runLoop();
 
   return {
     stop(): void {
       stopped = true;
+    },
+    waitUntilStopped(): Promise<void> {
+      return loopPromise;
     }
   };
 
@@ -35,6 +40,9 @@ export function createPollController(deps: PollDependencies): PollController {
 
       try {
         const result = await deps.check();
+        if (deps.afterCheck) {
+          await deps.afterCheck(result);
+        }
         const finishedAt = new Date().toISOString();
         const summary: PollCycleSummary = {
           cycle,

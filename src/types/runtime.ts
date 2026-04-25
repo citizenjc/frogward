@@ -10,7 +10,7 @@ import type {
 } from './message.js';
 
 export type SafetyLevel = 'probe' | 'forward';
-export type RunMode = 'check' | 'once' | 'poll' | 'forward-new';
+export type RunMode = 'check' | 'once' | 'poll' | 'forward-new' | 'service';
 
 export interface RunOptions {
   mode: RunMode;

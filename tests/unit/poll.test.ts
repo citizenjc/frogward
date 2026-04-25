@@ -94,4 +94,44 @@ describe('poll module', () => {
       expect.objectContaining({ message: 'temporary failure' })
     );
   });
+
+  it('runs afterCheck hook after successful cycles', async () => {
+    const check = vi.fn().mockResolvedValue({
+      messages: [],
+      probe: {
+        inboxReached: true,
+        parsedMessageCount: 1,
+        skippedAdRowCount: 0,
+        parserFallbacksUsed: [],
+        newMessageCount: 1,
+        alreadySeenCount: 0,
+        bootstrapScan: false
+      },
+      newMessages: []
+    });
+
+    const afterCheck = vi.fn().mockResolvedValue(undefined);
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      afterCheck,
+      logger,
+      config: {
+        pollIntervalMs: 10,
+        pollErrorBackoffMs: 20
+      }
+    });
+
+    await sleep(25);
+    controller.stop();
+    await sleep(15);
+
+    expect(afterCheck).toHaveBeenCalled();
+  });
 });

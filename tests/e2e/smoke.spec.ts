@@ -99,3 +99,15 @@ test('scaffold forward-new summarizes confirmed success counts', async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('service mode requires forwarding gate before starting automation', async () => {
+  const { stderr } = await execFileAsync('npm', ['run', 'dev', '--', '--service'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      APP_MODE: 'scaffold'
+    }
+  }).catch((error: { stderr?: string }) => ({ stderr: error.stderr ?? '' }));
+
+  expect(stderr).toContain('Forwarding mode blocked by security gate');
+});

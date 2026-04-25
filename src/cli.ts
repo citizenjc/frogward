@@ -11,11 +11,20 @@ export function parseArgs(args: string[]): RunOptions {
   const hasProbe = args.includes('--probe');
   const hasPoll = args.includes('--poll');
   const hasForward = args.includes('--forward-new');
+  const hasService = args.includes('--service');
   const isProbe = hasProbe || hasCheck;
-  const mode = hasCheck ? 'check' : hasPoll ? 'poll' : hasForward ? 'forward-new' : 'once';
+  const mode = hasCheck
+    ? 'check'
+    : hasService
+      ? 'service'
+      : hasPoll
+        ? 'poll'
+        : hasForward
+          ? 'forward-new'
+          : 'once';
 
   return {
     mode,
-    safetyLevel: isProbe ? 'probe' : hasForward ? 'forward' : 'probe'
+    safetyLevel: isProbe ? 'probe' : hasForward || hasService ? 'forward' : 'probe'
   };
 }

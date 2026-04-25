@@ -11,7 +11,7 @@ Current probe-enabled scaffold shape:
 7. `src/modules/forward.ts` remains separated and skipped in probe safety mode.
 8. `src/modules/inbox-parser.ts` parses inbox row HTML into typed summaries while skipping ad/promoted rows.
 9. `src/modules/new-mail-detector.ts` computes bootstrap/new/already-seen transitions against persisted seen state.
-10. `src/modules/poll.ts` orchestrates repeated read-only scan cycles with interval/backoff and lifecycle logs.
+10. `src/modules/poll.ts` orchestrates repeated scan cycles with interval/backoff and lifecycle logs, and can run post-scan forwarding hooks for service mode.
 11. `src/modules/state.ts` persists mailbox scan state (`seen`, `forwarded`, scan counters) to a local JSON file using atomic temp-file writes.
 12. `src/lib/*` holds shared browser, logger, and error infrastructure.
 
@@ -23,8 +23,14 @@ Runtime flow:
 4. Run SAPO login placeholder
 5. Run inbox check placeholder
 6. In probe safety (`--check` or `--probe`), stop after reporting discovered messages
-7. In forward safety (`--once` default), pass discovered messages to the forwarding placeholder
+7. In explicit mutation modes (`--forward-new` and `--service`), pass discovered new messages to the forwarding pipeline
 8. In live mode, capture debug artifacts (trace, optional screenshot/html) only under `tmp/` gitignored paths
+
+Service mode boundary:
+
+- `--service` is the always-on application mode for unattended polling + forwarding.
+- It reuses the same forward gate, filter rules, recipient verification, and state model as manual `--forward-new`.
+- The app process itself is continuous, but external process supervision (systemd/pm2/docker restart policy) is still an operational concern outside the core app.
 
 Logging boundary for read-only listing:
 

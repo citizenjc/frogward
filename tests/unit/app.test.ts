@@ -324,4 +324,81 @@ describe('app forwarding orchestration', () => {
       })
     );
   });
+
+  it('runs service mode as continuous poll-plus-forward automation', async () => {
+    const logger = createLogger();
+    const page = createPage({
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item" data-message-id="m-4"><span class="from">Revolut</span><span class="subject">Pagamento aprovado</span><span class="datetime">Hoje</span></div>'
+        )
+    });
+    const browser = createBrowser(page);
+    const state = createState({
+      load: vi.fn().mockResolvedValue({
+        seen: [
+          {
+            id: 'old-seen',
+            firstSeenAt: '2026-04-24T00:00:00.000Z',
+            lastSeenAt: '2026-04-24T00:00:00.000Z',
+            source: 'sapo-row-id',
+            confidence: 'high'
+          }
+        ],
+        forwarded: [],
+        scan: {
+          scanCount: 1,
+          lastNewCount: 0,
+          lastScanAt: '2026-04-24T00:00:00.000Z',
+          bootstrapCompletedAt: '2026-04-24T00:00:00.000Z'
+        }
+      })
+    });
+
+    const originalOn = process.on;
+    const originalOff = process.off;
+    const signalHandlers = new Map<string, () => void>();
+    process.on = ((event: string, handler: () => void) => {
+      signalHandlers.set(event, handler);
+      return process;
+    }) as typeof process.on;
+    process.off = ((event: string) => {
+      signalHandlers.delete(event);
+      return process;
+    }) as typeof process.off;
+
+    try {
+      const app = createApp({
+        config: createConfig({
+          forwardAllowSenderPatterns: ['revolut'],
+          pollIntervalMs: 10,
+          pollErrorBackoffMs: 10
+        }),
+        logger,
+        browser,
+        state
+      });
+
+      const runPromise = app.run({ mode: 'service', safetyLevel: 'forward' });
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      signalHandlers.get('SIGINT')?.();
+      await runPromise;
+
+      expect(state.markForwarded).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'm-4', status: 'success', attempts: 1 })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'app.service.start',
+        expect.objectContaining({ pollIntervalMs: 10, pollErrorBackoffMs: 10 })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'app.forward.complete',
+        expect.objectContaining({ successCount: 1 })
+      );
+    } finally {
+      process.on = originalOn;
+      process.off = originalOff;
+    }
+  });
 });

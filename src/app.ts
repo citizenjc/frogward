@@ -59,42 +59,11 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           const runSingleScan = async () =>
             runModule('check', () => checkInbox({ config, logger, page, state }));
 
-          if (options.mode === 'poll') {
-            logger.info('app.poll.start', {
-              pollIntervalMs: config.pollIntervalMs,
-              pollErrorBackoffMs: config.pollErrorBackoffMs
-            });
-
-            const controller = createPollController({
-              check: runSingleScan,
-              logger,
-              config: {
-                pollIntervalMs: config.pollIntervalMs,
-                pollErrorBackoffMs: config.pollErrorBackoffMs
-              }
-            });
-
-            await waitForStopSignal(controller, logger);
-            return;
-          }
-
-          const listing = await runSingleScan();
-          logger.info('app.check.complete', {
-            discoveredMessages: listing.messages.length,
-            newMessages: listing.newMessages?.length ?? 0,
-            alreadySeen: listing.alreadySeenMessages?.length ?? 0,
-            skippedAdRowCount: listing.probe.skippedAdRowCount,
-            parserFallbacksUsed: listing.probe.parserFallbacksUsed
-          });
-
-          if (options.mode === 'once' && options.safetyLevel === 'forward') {
-            logger.info('app.forward.deferred', {
-              reason: 'forwarding is intentionally out-of-scope for this milestone',
-              eligibleMessages: listing.newMessages?.length ?? 0
-            });
-          }
-
-          if (options.mode === 'forward-new') {
+          const processForwardCandidates = async (
+            listing: Awaited<ReturnType<typeof runSingleScan>>,
+            forwardedSnapshot?: Awaited<ReturnType<typeof state.load>>
+          ): Promise<void> => {
+            const snapshotForForward = forwardedSnapshot ?? (await state.load());
             if (!config.forwardingEnabled || !config.forwardingAck || !config.forwardingWarpToken) {
               throw new ModuleError('forward', 'Forwarding mode blocked by security gate.', {
                 forwardingEnabled: config.forwardingEnabled,
@@ -109,7 +78,9 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
 
             const candidates = listing.newMessages ?? [];
             logger.info('app.forward.start', { candidateCount: candidates.length });
-            const forwardedRecords = new Map(snapshot.forwarded.map((entry) => [entry.id, entry]));
+            const forwardedRecords = new Map(
+              snapshotForForward.forwarded.map((entry) => [entry.id, entry])
+            );
             const outcomeCounts = {
               filtered: 0,
               success: 0,
@@ -181,6 +152,74 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               successCount: outcomeCounts.success,
               failedCount: outcomeCounts.failed
             });
+          };
+
+          if (options.mode === 'poll') {
+            logger.info('app.poll.start', {
+              pollIntervalMs: config.pollIntervalMs,
+              pollErrorBackoffMs: config.pollErrorBackoffMs
+            });
+
+            const controller = createPollController({
+              check: runSingleScan,
+              logger,
+              config: {
+                pollIntervalMs: config.pollIntervalMs,
+                pollErrorBackoffMs: config.pollErrorBackoffMs
+              }
+            });
+
+            await waitForStopSignal(controller, logger);
+            return;
+          }
+
+          if (options.mode === 'service') {
+            logger.info('app.service.start', {
+              pollIntervalMs: config.pollIntervalMs,
+              pollErrorBackoffMs: config.pollErrorBackoffMs
+            });
+
+            const controller = createPollController({
+              check: runSingleScan,
+              afterCheck: async (listing) => {
+                logger.info('app.check.complete', {
+                  discoveredMessages: listing.messages.length,
+                  newMessages: listing.newMessages?.length ?? 0,
+                  alreadySeen: listing.alreadySeenMessages?.length ?? 0,
+                  skippedAdRowCount: listing.probe.skippedAdRowCount,
+                  parserFallbacksUsed: listing.probe.parserFallbacksUsed
+                });
+                await processForwardCandidates(listing);
+              },
+              logger,
+              config: {
+                pollIntervalMs: config.pollIntervalMs,
+                pollErrorBackoffMs: config.pollErrorBackoffMs
+              }
+            });
+
+            await waitForStopSignal(controller, logger);
+            return;
+          }
+
+          const listing = await runSingleScan();
+          logger.info('app.check.complete', {
+            discoveredMessages: listing.messages.length,
+            newMessages: listing.newMessages?.length ?? 0,
+            alreadySeen: listing.alreadySeenMessages?.length ?? 0,
+            skippedAdRowCount: listing.probe.skippedAdRowCount,
+            parserFallbacksUsed: listing.probe.parserFallbacksUsed
+          });
+
+          if (options.mode === 'once' && options.safetyLevel === 'forward') {
+            logger.info('app.forward.deferred', {
+              reason: 'forwarding is intentionally out-of-scope for this milestone',
+              eligibleMessages: listing.newMessages?.length ?? 0
+            });
+          }
+
+          if (options.mode === 'forward-new') {
+            await processForwardCandidates(listing, snapshot);
           }
         } catch (error) {
           failed = true;
@@ -243,7 +282,7 @@ function summarizeArtifact(filePath: string): {
 }
 
 async function waitForStopSignal(
-  controller: { stop(): void },
+  controller: { stop(): void; waitUntilStopped(): Promise<void> },
   logger: AppRuntime['logger']
 ): Promise<void> {
   await new Promise<void>((resolve) => {
@@ -252,7 +291,7 @@ async function waitForStopSignal(
       logger.info('app.poll.stop-signal');
       process.off('SIGINT', handle);
       process.off('SIGTERM', handle);
-      resolve();
+      void controller.waitUntilStopped().finally(resolve);
     };
 
     process.on('SIGINT', handle);
