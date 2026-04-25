@@ -91,7 +91,7 @@ describe('check module', () => {
       12000
     );
     expect(state.save).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       'sapo.check.probe_summary',
       expect.objectContaining({
         inboxReached: true,

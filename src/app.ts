@@ -61,11 +61,12 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
 
           const processForwardCandidates = async (
             listing: Awaited<ReturnType<typeof runSingleScan>>,
-            forwardedSnapshot?: Awaited<ReturnType<typeof state.load>>
+            forwardedSnapshot?: Awaited<ReturnType<typeof state.load>>,
+            quietNoop = false
           ): Promise<void> => {
             const snapshotForForward = forwardedSnapshot ?? (await state.load());
             if (!config.forwardingEnabled) {
-              logger.info('app.forward.skipped', {
+              logger.debug('app.forward.skipped', {
                 reason: 'forwarding_disabled'
               });
               return;
@@ -76,7 +77,11 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             }
 
             const candidates = listing.newMessages ?? [];
-            logger.info('app.forward.start', { candidateCount: candidates.length });
+            if (candidates.length > 0 || !quietNoop) {
+              logger.info('app.forward.start', { candidateCount: candidates.length });
+            } else {
+              logger.debug('app.forward.start', { candidateCount: candidates.length });
+            }
             const forwardedRecords = new Map(
               snapshotForForward.forwarded.map((entry) => [entry.id, entry])
             );
@@ -145,7 +150,14 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               });
             }
 
-            logger.info('app.forward.complete', {
+            const completionLevel =
+              !quietNoop ||
+              candidates.length > 0 ||
+              outcomeCounts.filtered > 0 ||
+              outcomeCounts.failed > 0
+                ? 'info'
+                : 'debug';
+            logger[completionLevel]('app.forward.complete', {
               candidateCount: candidates.length,
               filteredCount: outcomeCounts.filtered,
               successCount: outcomeCounts.success,
@@ -181,14 +193,19 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             const controller = createPollController({
               check: runSingleScan,
               afterCheck: async (listing) => {
-                logger.info('app.check.complete', {
+                const checkSummary = {
                   discoveredMessages: listing.messages.length,
                   newMessages: listing.newMessages?.length ?? 0,
                   alreadySeen: listing.alreadySeenMessages?.length ?? 0,
                   skippedAdRowCount: listing.probe.skippedAdRowCount,
                   parserFallbacksUsed: listing.probe.parserFallbacksUsed
-                });
-                await processForwardCandidates(listing);
+                };
+                const shouldLogCheckAtInfo =
+                  checkSummary.newMessages > 0 ||
+                  checkSummary.skippedAdRowCount > 0 ||
+                  checkSummary.parserFallbacksUsed.length > 0;
+                logger[shouldLogCheckAtInfo ? 'info' : 'debug']('app.check.complete', checkSummary);
+                await processForwardCandidates(listing, undefined, true);
               },
               logger,
               config: {
@@ -202,13 +219,14 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           }
 
           const listing = await runSingleScan();
-          logger.info('app.check.complete', {
+          const checkSummary = {
             discoveredMessages: listing.messages.length,
             newMessages: listing.newMessages?.length ?? 0,
             alreadySeen: listing.alreadySeenMessages?.length ?? 0,
             skippedAdRowCount: listing.probe.skippedAdRowCount,
             parserFallbacksUsed: listing.probe.parserFallbacksUsed
-          });
+          };
+          logger.info('app.check.complete', checkSummary);
 
           if (options.mode === 'once' && options.safetyLevel === 'forward') {
             logger.info('app.forward.deferred', {
@@ -218,7 +236,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           }
 
           if (options.mode === 'forward-new') {
-            await processForwardCandidates(listing, snapshot);
+            await processForwardCandidates(listing, snapshot, false);
           }
         } catch (error) {
           failed = true;

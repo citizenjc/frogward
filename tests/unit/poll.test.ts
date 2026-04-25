@@ -46,6 +46,10 @@ describe('poll module', () => {
 
     expect(check.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(logger.info).toHaveBeenCalledWith(
+      'poll.heartbeat',
+      expect.objectContaining({ cycle: 1 })
+    );
+    expect(logger.debug).toHaveBeenCalledWith(
       'poll.cycle.complete',
       expect.objectContaining({ cycle: 1 })
     );

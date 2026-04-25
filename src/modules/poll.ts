@@ -36,7 +36,7 @@ export function createPollController(deps: PollDependencies): PollController {
     while (!stopped) {
       cycle += 1;
       const startedAt = new Date().toISOString();
-      deps.logger.info('poll.cycle.start', { cycle, startedAt });
+      deps.logger.debug('poll.cycle.start', { cycle, startedAt });
 
       try {
         const result = await deps.check();
@@ -54,7 +54,7 @@ export function createPollController(deps: PollDependencies): PollController {
           bootstrapScan: result.probe.bootstrapScan ?? false
         };
 
-        deps.logger.info('poll.cycle.complete', {
+        deps.logger.debug('poll.cycle.complete', {
           cycle: summary.cycle,
           startedAt: summary.startedAt,
           finishedAt: summary.finishedAt,
@@ -63,6 +63,16 @@ export function createPollController(deps: PollDependencies): PollController {
           alreadySeenCount: summary.alreadySeenCount,
           bootstrapScan: summary.bootstrapScan
         });
+
+        if (summary.newCount > 0 || cycle === 1 || cycle % 10 === 0) {
+          deps.logger.info('poll.heartbeat', {
+            cycle: summary.cycle,
+            parsedCount: summary.parsedCount,
+            newCount: summary.newCount,
+            alreadySeenCount: summary.alreadySeenCount,
+            bootstrapScan: summary.bootstrapScan
+          });
+        }
 
         if (stopped) {
           break;

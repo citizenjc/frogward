@@ -16,13 +16,13 @@ export async function checkInbox({
 }: CheckInput): Promise<InboxListingResult> {
   const snapshot = await state.load();
 
-  logger.info('sapo.check.start', {
+  logger.debug('sapo.check.start', {
     knownMessages: snapshot.seen.length,
     mode: config.mode
   });
 
   if (config.mode === 'live') {
-    logger.info('sapo.check.selector_strategy', {
+    logger.debug('sapo.check.selector_strategy', {
       primary: ['.list-item.focus', '.from', '.subject', '.datetime'],
       fallback: ['.messages-list', 'title includes inbox', 'url:/messages/SU5CT1g']
     });
@@ -56,7 +56,7 @@ export async function checkInbox({
     }
   };
 
-  logger.info('sapo.check.probe_summary', {
+  logger.debug('sapo.check.probe_summary', {
     inboxReached: result.probe.inboxReached,
     inboxTitle: result.probe.inboxTitle,
     visibleMessageCount: result.probe.visibleMessageCount,
@@ -65,15 +65,7 @@ export async function checkInbox({
     alreadySeenCount: result.probe.alreadySeenCount,
     newMessageCount: result.probe.newMessageCount,
     bootstrapScan: result.probe.bootstrapScan,
-    parserFallbacksUsed: result.probe.parserFallbacksUsed,
-    sampleSenders: redactSummaryList(
-      result.messages.map((message) => message.from),
-      2
-    ),
-    sampleSubjects: redactSummaryList(
-      result.messages.map((message) => message.subject),
-      2
-    )
+    parserFallbacksUsed: result.probe.parserFallbacksUsed
   });
   return result;
 }
@@ -159,15 +151,4 @@ async function ensureInboxReachable(page: BrowserPage): Promise<{ title: string;
   }
 
   return { title, url };
-}
-
-function redactSummaryList(values: string[], maxItems: number): string[] {
-  return values.slice(0, maxItems).map((value) => {
-    const compact = value.trim();
-    if (compact.length <= 3) {
-      return '[redacted]';
-    }
-
-    return `${compact.slice(0, 1)}***${compact.slice(-1)}`;
-  });
 }
