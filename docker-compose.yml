@@ -1,0 +1,10 @@
+services:
+  frogward:
+    build: .
+    container_name: frogward
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./tmp:/app/tmp
+    command: npm run dev -- --service
