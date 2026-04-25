@@ -22,8 +22,7 @@ This is the normal mode most people should use.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO login and destination email
-3. Set `APP_MODE=live`
-4. Turn on forwarding in `.env`
+3. Turn on forwarding in `.env`
 
 Minimum values for a normal first run:
 

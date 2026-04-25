@@ -16,12 +16,13 @@ describe('config schema', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('allows scaffold mode defaults', () => {
+  it('defaults to live mode with headless enabled', () => {
     const result = parseConfig({});
 
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
     if (result.ok) {
-      expect(result.value.mode).toBe('scaffold');
+      expect(result.value.mode).toBe('live');
+      expect(result.value.headless).toBe(true);
       expect(result.value.destinationEmail).toBeUndefined();
       expect(result.value.artifactDir).toBe('tmp/live-artifacts');
       expect(result.value.persistStorageState).toBe(true);
@@ -32,6 +33,10 @@ describe('config schema', () => {
       expect(result.value.forwardBlockSenderPatterns).toEqual([]);
       expect(result.value.forwardAllowSubjectPatterns).toEqual([]);
       expect(result.value.forwardBlockSubjectPatterns).toEqual([]);
+    } else {
+      expect(result.error).toContain('SAPO_USERNAME is required in live mode');
+      expect(result.error).toContain('SAPO_PASSWORD is required in live mode');
+      expect(result.error).toContain('STORAGE_STATE_PATH is required in live mode');
     }
   });
 
@@ -51,6 +56,9 @@ describe('config schema', () => {
 
   it('parses forwarding filter patterns from env', () => {
     const result = parseConfig({
+      SAPO_USERNAME: 'user@example.com',
+      SAPO_PASSWORD: 'secret',
+      STORAGE_STATE_PATH: 'tmp/sapo/session.auth.json',
       FORWARD_ALLOW_SENDERS: 'bpi,revolut',
       FORWARD_BLOCK_SENDERS: 'spam@',
       FORWARD_ALLOW_SUBJECTS: 'critical,alert',

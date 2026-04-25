@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Initial scaffold for SAPO webmail forwarding automation",
+  "description": "Self-hosted SAPO webmail forwarding service",
   "engines": {
     "node": ">=20"
   },

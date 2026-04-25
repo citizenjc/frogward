@@ -144,6 +144,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
 function parseMode(mode: string | undefined): AppConfig['mode'] | null {
   switch (mode) {
     case undefined:
+      return 'live';
     case 'scaffold':
       return 'scaffold';
     case 'live':

@@ -46,7 +46,7 @@ For a normal deployment, the only values you realistically need to think about f
 - `SAPO_PASSWORD`
 - `DESTINATION_EMAIL`
 
-Set `APP_MODE=live`, then keep the rest on defaults until you actually need to tune them.
+Keep the rest on defaults until you actually need to tune them.
 
 ## Good next deployment steps
 
