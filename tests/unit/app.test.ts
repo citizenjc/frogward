@@ -28,8 +28,6 @@ function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     captureScreenshotOnFailure: true,
     captureTraceOnFailure: true,
     forwardingEnabled: true,
-    forwardingAck: true,
-    forwardingWarpToken: 'warp-ok',
     forwardAllowSenderPatterns: [],
     forwardBlockSenderPatterns: [],
     forwardAllowSubjectPatterns: [],

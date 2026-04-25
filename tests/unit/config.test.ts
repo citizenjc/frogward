@@ -26,25 +26,29 @@ describe('config schema', () => {
     }
   });
 
-  it('requires forwarding ack and warp token when forwarding is enabled', () => {
+  it('requires destination email in live mode when forwarding is enabled', () => {
     const result = parseConfig({
+      APP_MODE: 'live',
+      SAPO_USERNAME: 'user@example.com',
+      SAPO_PASSWORD: 'secret',
       FORWARDING_ENABLED: 'true'
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toContain('FORWARDING_ACK must be true when FORWARDING_ENABLED=true');
       expect(result.error).toContain(
-        'FORWARDING_WARP_TOKEN is required when FORWARDING_ENABLED=true'
+        'DESTINATION_EMAIL is required in live mode when forwarding is enabled'
       );
     }
   });
 
   it('parses forwarding filter patterns from env', () => {
     const result = parseConfig({
+      APP_MODE: 'live',
       SAPO_USERNAME: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       STORAGE_STATE_PATH: 'tmp/sapo/session.auth.json',
+      DESTINATION_EMAIL: 'dest@example.com',
       FORWARD_ALLOW_SENDERS: 'bpi,revolut',
       FORWARD_BLOCK_SENDERS: 'spam@',
       FORWARD_ALLOW_SUBJECTS: 'critical,alert',
@@ -75,7 +79,8 @@ describe('config schema', () => {
     const result = parseConfig({
       APP_MODE: 'live',
       SAPO_USERNAME: 'user@example.com',
-      SAPO_PASSWORD: 'secret'
+      SAPO_PASSWORD: 'secret',
+      DESTINATION_EMAIL: 'dest@example.com'
     });
 
     expect(result.ok).toBe(true);
@@ -110,6 +115,7 @@ describe('config schema', () => {
       APP_MODE: 'live',
       SAPO_USERNAME: 'user@example.com',
       SAPO_PASSWORD: 'secret',
+      DESTINATION_EMAIL: 'dest@example.com',
       PERSIST_STORAGE_STATE: 'false'
     });
 

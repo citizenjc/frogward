@@ -64,12 +64,11 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             forwardedSnapshot?: Awaited<ReturnType<typeof state.load>>
           ): Promise<void> => {
             const snapshotForForward = forwardedSnapshot ?? (await state.load());
-            if (!config.forwardingEnabled || !config.forwardingAck || !config.forwardingWarpToken) {
-              throw new ModuleError('forward', 'Forwarding mode blocked by security gate.', {
-                forwardingEnabled: config.forwardingEnabled,
-                forwardingAck: config.forwardingAck,
-                hasWarpToken: Boolean(config.forwardingWarpToken)
+            if (!config.forwardingEnabled) {
+              logger.info('app.forward.skipped', {
+                reason: 'forwarding_disabled'
               });
+              return;
             }
 
             if (!config.destinationEmail) {

@@ -22,8 +22,7 @@ This is the recommended setup for most people.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO email, password, and destination email
-3. Turn forwarding on in `.env`
-4. Start Frogward:
+3. Start Frogward:
 
 ```bash
 docker compose up -d --build

@@ -25,7 +25,7 @@
 
 ## For safety
 
-- only enable forwarding intentionally
 - verify `DESTINATION_EMAIL` carefully
+- set `FORWARDING_ENABLED=false` if you want monitoring without forwarding
 - avoid changing live selectors casually once forwarding is working
 - treat browser session files and artifacts as sensitive local data

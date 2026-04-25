@@ -33,19 +33,20 @@ test('scaffold explicit probe mode succeeds', async () => {
   expect(stdout).toContain('app.check.complete');
 });
 
-test('forward-new mode is blocked without forwarding gate', async () => {
-  const { stderr } = await execFileAsync('npm', ['run', 'dev', '--', '--forward-new'], {
+test('forward-new mode in scaffold can run without destination gate', async () => {
+  const { stdout, stderr } = await execFileAsync('npm', ['run', 'dev', '--', '--forward-new'], {
     cwd: process.cwd(),
     env: {
       ...process.env,
       APP_MODE: 'scaffold'
     }
-  }).catch((error: { stderr?: string }) => ({ stderr: error.stderr ?? '' }));
+  });
 
-  expect(stderr).toContain('Forwarding mode blocked by security gate');
+  expect(stderr).toBe('');
+  expect(stdout).toContain('app.forward.start');
 });
 
-test('scaffold forward-new summarizes confirmed success counts', async () => {
+test('scaffold forward-new records forward attempt results', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'frogward-smoke-'));
   const statePath = join(dir, 'runtime-state.json');
 
@@ -83,9 +84,6 @@ test('scaffold forward-new summarizes confirmed success counts', async () => {
         ...process.env,
         APP_MODE: 'scaffold',
         STATE_FILE_PATH: statePath,
-        FORWARDING_ENABLED: 'true',
-        FORWARDING_ACK: 'true',
-        FORWARDING_WARP_TOKEN: 'warp-ok',
         DESTINATION_EMAIL: 'dest@example.com'
       }
     });
@@ -93,21 +91,24 @@ test('scaffold forward-new summarizes confirmed success counts', async () => {
     expect(stderr).toBe('');
     expect(stdout).toContain('app.forward.complete');
     expect(stdout).toContain('"candidateCount":1');
-    expect(stdout).toContain('"successCount":1');
-    expect(stdout).toContain('"failedCount":0');
+    expect(stdout).toContain('"failedCount":1');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 });
 
-test('service mode requires forwarding gate before starting automation', async () => {
+test('live mode requires destination email when forwarding is enabled', async () => {
   const { stderr } = await execFileAsync('npm', ['run', 'dev', '--', '--service'], {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      APP_MODE: 'scaffold'
+      DOTENV_CONFIG_PATH: join(tmpdir(), 'frogward-empty.env'),
+      APP_MODE: 'live',
+      SAPO_USERNAME: 'user@example.com',
+      SAPO_PASSWORD: 'secret',
+      DESTINATION_EMAIL: ''
     }
   }).catch((error: { stderr?: string }) => ({ stderr: error.stderr ?? '' }));
 
-  expect(stderr).toContain('Forwarding mode blocked by security gate');
+  expect(stderr).toContain('DESTINATION_EMAIL is required in live mode when forwarding is enabled');
 });

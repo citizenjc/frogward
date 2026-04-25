@@ -30,17 +30,12 @@ That also keeps it running, checking for new mail and forwarding matching messag
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO login and destination email
-3. Turn on forwarding in `.env`
 
 Minimum values for a normal first run:
 
 - `SAPO_USERNAME=...`
 - `SAPO_PASSWORD=...`
 - `DESTINATION_EMAIL=...`
-
-After that, turn on forwarding by setting:
-
-- `FORWARDING_ENABLED=true`
 
 Advanced forwarding and troubleshooting options are covered in the other docs.
 

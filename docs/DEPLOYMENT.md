@@ -53,8 +53,6 @@ For a normal deployment, the only values you realistically need to think about f
 
 Keep the rest on defaults until you actually need to tune them.
 
-To actually allow forwarding, also enable it in `.env` when you are ready.
-
 ## Good next deployment steps
 
 - add health checks

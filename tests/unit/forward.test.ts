@@ -18,8 +18,6 @@ function createConfig(destinationEmail: string | undefined = 'dest@example.com')
     captureScreenshotOnFailure: true,
     captureTraceOnFailure: true,
     forwardingEnabled: true,
-    forwardingAck: true,
-    forwardingWarpToken: 'warp-ok',
     forwardAllowSenderPatterns: [],
     forwardBlockSenderPatterns: [],
     forwardAllowSubjectPatterns: [],

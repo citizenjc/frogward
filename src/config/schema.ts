@@ -13,8 +13,6 @@ export interface AppConfig {
   captureScreenshotOnFailure: boolean;
   captureTraceOnFailure: boolean;
   forwardingEnabled: boolean;
-  forwardingAck: boolean;
-  forwardingWarpToken?: string;
   forwardAllowSenderPatterns: string[];
   forwardBlockSenderPatterns: string[];
   forwardAllowSubjectPatterns: string[];
@@ -48,9 +46,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const artifactDir = source.ARTIFACT_DIR?.trim() || 'tmp/live-artifacts';
   const captureScreenshotOnFailure = parseBoolean(source.CAPTURE_SCREENSHOT_ON_FAILURE, true);
   const captureTraceOnFailure = parseBoolean(source.CAPTURE_TRACE_ON_FAILURE, true);
-  const forwardingEnabled = parseBoolean(source.FORWARDING_ENABLED, false);
-  const forwardingAck = parseBoolean(source.FORWARDING_ACK, false);
-  const forwardingWarpToken = source.FORWARDING_WARP_TOKEN?.trim() || undefined;
+  const forwardingEnabled = parseBoolean(source.FORWARDING_ENABLED, true);
   const forwardAllowSenderPatterns = parsePatterns(source.FORWARD_ALLOW_SENDERS);
   const forwardBlockSenderPatterns = parsePatterns(source.FORWARD_BLOCK_SENDERS);
   const forwardAllowSubjectPatterns = parsePatterns(source.FORWARD_ALLOW_SUBJECTS);
@@ -90,15 +86,9 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
     if (!sapoPassword) {
       errors.push('SAPO_PASSWORD is required in live mode');
     }
-  }
 
-  if (forwardingEnabled) {
-    if (!forwardingAck) {
-      errors.push('FORWARDING_ACK must be true when FORWARDING_ENABLED=true');
-    }
-
-    if (!forwardingWarpToken) {
-      errors.push('FORWARDING_WARP_TOKEN is required when FORWARDING_ENABLED=true');
+    if (forwardingEnabled && !destinationEmail) {
+      errors.push('DESTINATION_EMAIL is required in live mode when forwarding is enabled');
     }
   }
 
@@ -126,8 +116,6 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
       captureScreenshotOnFailure,
       captureTraceOnFailure,
       forwardingEnabled,
-      forwardingAck,
-      forwardingWarpToken,
       forwardAllowSenderPatterns,
       forwardBlockSenderPatterns,
       forwardAllowSubjectPatterns,
