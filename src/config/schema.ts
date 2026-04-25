@@ -42,8 +42,8 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const pollIntervalMs = Number(source.POLL_INTERVAL_MS ?? '60000');
   const pollErrorBackoffMs = Number(source.POLL_ERROR_BACKOFF_MS ?? '5000');
   const headless = parseBoolean(source.HEADLESS, true);
-  const stateFilePath = source.STATE_FILE_PATH?.trim() || 'src/state/runtime-state.json';
-  const storageStatePath = source.STORAGE_STATE_PATH?.trim() || undefined;
+  const stateFilePath = source.STATE_FILE_PATH?.trim() || 'tmp/sapo/runtime-state.json';
+  const storageStatePath = source.STORAGE_STATE_PATH?.trim() || 'tmp/sapo/session.auth.json';
   const persistStorageState = parseBoolean(source.PERSIST_STORAGE_STATE, true);
   const artifactDir = source.ARTIFACT_DIR?.trim() || 'tmp/live-artifacts';
   const captureScreenshotOnFailure = parseBoolean(source.CAPTURE_SCREENSHOT_ON_FAILURE, true);
@@ -89,10 +89,6 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
 
     if (!sapoPassword) {
       errors.push('SAPO_PASSWORD is required in live mode');
-    }
-
-    if (persistStorageState && !storageStatePath) {
-      errors.push('STORAGE_STATE_PATH is required in live mode');
     }
   }
 

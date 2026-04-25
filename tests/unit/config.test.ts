@@ -20,23 +20,9 @@ describe('config schema', () => {
     const result = parseConfig({});
 
     expect(result.ok).toBe(false);
-    if (result.ok) {
-      expect(result.value.mode).toBe('live');
-      expect(result.value.headless).toBe(true);
-      expect(result.value.destinationEmail).toBeUndefined();
-      expect(result.value.artifactDir).toBe('tmp/live-artifacts');
-      expect(result.value.persistStorageState).toBe(true);
-      expect(result.value.pollErrorBackoffMs).toBe(5000);
-      expect(result.value.forwardingEnabled).toBe(false);
-      expect(result.value.forwardingAck).toBe(false);
-      expect(result.value.forwardAllowSenderPatterns).toEqual([]);
-      expect(result.value.forwardBlockSenderPatterns).toEqual([]);
-      expect(result.value.forwardAllowSubjectPatterns).toEqual([]);
-      expect(result.value.forwardBlockSubjectPatterns).toEqual([]);
-    } else {
+    if (!result.ok) {
       expect(result.error).toContain('SAPO_USERNAME is required in live mode');
       expect(result.error).toContain('SAPO_PASSWORD is required in live mode');
-      expect(result.error).toContain('STORAGE_STATE_PATH is required in live mode');
     }
   });
 
@@ -85,16 +71,16 @@ describe('config schema', () => {
     }
   });
 
-  it('requires storage state path in live mode', () => {
+  it('defaults storage state path in live mode', () => {
     const result = parseConfig({
       APP_MODE: 'live',
       SAPO_USERNAME: 'user@example.com',
       SAPO_PASSWORD: 'secret'
     });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toContain('STORAGE_STATE_PATH is required in live mode');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.storageStatePath).toBe('tmp/sapo/session.auth.json');
     }
   });
 
@@ -130,7 +116,7 @@ describe('config schema', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.persistStorageState).toBe(false);
-      expect(result.value.storageStatePath).toBeUndefined();
+      expect(result.value.storageStatePath).toBe('tmp/sapo/session.auth.json');
     }
   });
 

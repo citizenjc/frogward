@@ -21,7 +21,7 @@ function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     pollIntervalMs: 60000,
     pollErrorBackoffMs: 5000,
     headless: true,
-    stateFilePath: 'src/state/runtime-state.json',
+    stateFilePath: 'tmp/sapo/runtime-state.json',
     storageStatePath: undefined,
     persistStorageState: false,
     artifactDir: 'tmp/live-artifacts',

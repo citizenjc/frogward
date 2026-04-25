@@ -11,7 +11,7 @@ function createConfig(destinationEmail: string | undefined = 'dest@example.com')
     pollIntervalMs: 60000,
     pollErrorBackoffMs: 5000,
     headless: true,
-    stateFilePath: 'src/state/runtime-state.json',
+    stateFilePath: 'tmp/sapo/runtime-state.json',
     storageStatePath: 'tmp/sapo/session.auth.json',
     persistStorageState: true,
     artifactDir: 'tmp/live-artifacts',
