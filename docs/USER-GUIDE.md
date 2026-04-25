@@ -16,6 +16,8 @@ npm run dev -- --service
 
 That keeps it running, checking for new mail and forwarding matching messages automatically.
 
+This is the normal mode most people should use.
+
 ## Before you start
 
 1. Copy `.env.example` to `.env`
@@ -32,31 +34,15 @@ Important values:
 - `FORWARDING_ACK=true`
 - `FORWARDING_WARP_TOKEN=...`
 
-## Useful commands
+## Main command
 
-- Check basic startup:
-
-```bash
-npm run dev -- --check
-```
-
-- Probe SAPO without forwarding:
-
-```bash
-npm run dev -- --probe
-```
-
-- Forward only the currently new messages one time:
-
-```bash
-npm run dev -- --forward-new
-```
-
-- Run continuously as the service:
+Run continuously as the service:
 
 ```bash
 npm run dev -- --service
 ```
+
+If you want developer or troubleshooting commands, see the [Development](./DEVELOPMENT.md) guide.
 
 ## What happens when it runs
 

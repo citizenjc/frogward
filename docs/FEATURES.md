@@ -13,6 +13,10 @@
 - success confirmation with Sent-folder fallback
 - local failure artifacts for debugging
 
+## Main product idea
+
+Frogward is meant to be a small personal service that keeps running and forwards new SAPO mail automatically.
+
 ## Current boundaries
 
 - no spam-folder scanning yet
