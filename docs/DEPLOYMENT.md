@@ -50,6 +50,7 @@ For a normal deployment, the only values you realistically need to think about f
 - `SAPO_USERNAME`
 - `SAPO_PASSWORD`
 - `DESTINATION_EMAIL`
+- `POLL_INTERVAL_MS` (optional, defaults to `60000`)
 
 Keep the rest on defaults until you actually need to tune them.
 

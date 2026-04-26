@@ -22,7 +22,8 @@ This is the recommended setup for most people.
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO email, password, and destination email
-3. Start Frogward:
+3. Optional: change `POLL_INTERVAL_MS` if you want slower or faster checks
+4. Start Frogward:
 
 ```bash
 docker compose up -d --build
@@ -42,7 +43,10 @@ These are the only values most people need to care about at first:
 SAPO_USERNAME=your-sapo-email
 SAPO_PASSWORD=your-password
 DESTINATION_EMAIL=your-other-email@example.com
+POLL_INTERVAL_MS=60000
 ```
+
+`POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds. Lower is faster but noisier/heavier; higher is quieter/lighter.
 
 Everything else can stay on the defaults when you are starting out.
 

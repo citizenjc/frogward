@@ -30,12 +30,16 @@ That also keeps it running, checking for new mail and forwarding matching messag
 
 1. Copy `.env.example` to `.env`
 2. Fill in your SAPO login and destination email
+3. Optional: change `POLL_INTERVAL_MS` if you want a different check frequency
 
 Minimum values for a normal first run:
 
 - `SAPO_USERNAME=...`
 - `SAPO_PASSWORD=...`
 - `DESTINATION_EMAIL=...`
+- `POLL_INTERVAL_MS=60000`
+
+`POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds.
 
 Advanced forwarding and troubleshooting options are covered in the other docs.
 
