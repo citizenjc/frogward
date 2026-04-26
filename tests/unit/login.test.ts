@@ -36,6 +36,7 @@ describe('login module', () => {
       usingStorageState: true,
       page: {
         goto: vi.fn().mockResolvedValue(null),
+        reload: vi.fn().mockResolvedValue(null),
         fill: vi.fn().mockResolvedValue(undefined),
         pressKey: vi.fn().mockResolvedValue(undefined),
         readFieldValue: vi.fn().mockResolvedValue(undefined),
@@ -91,6 +92,7 @@ describe('login module', () => {
         usingStorageState: false,
         page: {
           goto: vi.fn().mockResolvedValue(null),
+          reload: vi.fn().mockResolvedValue(null),
           fill: vi.fn().mockResolvedValue(undefined),
           pressKey: vi.fn().mockResolvedValue(undefined),
           readFieldValue: vi.fn().mockResolvedValue(undefined),

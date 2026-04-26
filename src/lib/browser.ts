@@ -9,6 +9,7 @@ let stealthConfigured = false;
 
 export interface BrowserPage {
   goto(url: string): Promise<unknown>;
+  reload(): Promise<unknown>;
   fill(selector: string, value: string): Promise<void>;
   pressKey(key: string): Promise<void>;
   readFieldValue(selector: string): Promise<string | undefined>;
@@ -46,6 +47,7 @@ interface BrowserManagerOptions {
 
 interface PlaywrightPageHandle {
   goto(url: string): Promise<unknown>;
+  reload(options?: { waitUntil?: 'domcontentloaded' | 'load' }): Promise<unknown>;
   fill(selector: string, value: string): Promise<void>;
   keyboard: { press(key: string): Promise<void> };
   click(selector: string): Promise<void>;
@@ -125,6 +127,10 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
       async goto(url: string): Promise<unknown> {
         currentUrl = url;
         logger.debug('browser.stub.goto', { url });
+        return null;
+      },
+      async reload(): Promise<unknown> {
+        logger.debug('browser.stub.reload');
         return null;
       },
       async fill(selector: string, value: string): Promise<void> {
@@ -212,6 +218,9 @@ function createPlaywrightSession(
     page: {
       goto(url: string): Promise<unknown> {
         return page.goto(url);
+      },
+      reload(): Promise<unknown> {
+        return page.reload({ waitUntil: 'domcontentloaded' });
       },
       fill(selector: string, value: string): Promise<void> {
         return page.fill(selector, value);

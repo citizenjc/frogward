@@ -14,6 +14,7 @@ describe('check module', () => {
 
     const page = {
       goto: vi.fn().mockResolvedValue(null),
+      reload: vi.fn().mockResolvedValue(null),
       fill: vi.fn().mockResolvedValue(undefined),
       pressKey: vi.fn().mockResolvedValue(undefined),
       readFieldValue: vi.fn().mockResolvedValue(undefined),
@@ -137,6 +138,7 @@ describe('check module', () => {
         },
         page: {
           goto: vi.fn().mockResolvedValue(null),
+          reload: vi.fn().mockResolvedValue(null),
           fill: vi.fn().mockResolvedValue(undefined),
           pressKey: vi.fn().mockResolvedValue(undefined),
           readFieldValue: vi.fn().mockResolvedValue(undefined),
@@ -188,6 +190,7 @@ describe('check module', () => {
 
     const page = {
       goto: vi.fn().mockResolvedValue(null),
+      reload: vi.fn().mockResolvedValue(null),
       fill: vi.fn().mockResolvedValue(undefined),
       pressKey: vi.fn().mockResolvedValue(undefined),
       readFieldValue: vi.fn().mockResolvedValue(undefined),
@@ -278,6 +281,7 @@ describe('check module', () => {
 
     const page = {
       goto: vi.fn().mockResolvedValue(null),
+      reload: vi.fn().mockResolvedValue(null),
       fill: vi.fn().mockResolvedValue(undefined),
       pressKey: vi.fn().mockResolvedValue(undefined),
       readFieldValue: vi.fn().mockResolvedValue(undefined),

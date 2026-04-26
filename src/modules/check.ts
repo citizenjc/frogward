@@ -126,6 +126,7 @@ async function buildListingSummary(page: BrowserPage): Promise<{
 
 async function ensureInboxReachable(page: BrowserPage): Promise<{ title: string; url: string }> {
   await page.goto('https://mail.sapo.pt/v7/#/messages/SU5CT1g');
+  await page.reload();
 
   const inboxVisible = await page.waitForSelector(
     'a[href*="inbox"], [data-folder="inbox"], [href*="#/messages/SU5CT1g"]',

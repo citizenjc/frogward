@@ -84,6 +84,7 @@ function createPageStub(overrides: Partial<Record<string, unknown>> = {}) {
 
   return {
     goto: vi.fn().mockResolvedValue(null),
+    reload: vi.fn().mockResolvedValue(null),
     fill: vi.fn().mockResolvedValue(undefined),
     pressKey: vi.fn().mockResolvedValue(undefined),
     readFieldValue: vi.fn().mockResolvedValue('dest@example.com'),
