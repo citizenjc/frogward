@@ -42,6 +42,7 @@ function createPage(overrides: Record<string, unknown> = {}) {
     goto: vi.fn().mockResolvedValue(null),
     reload: vi.fn().mockResolvedValue(null),
     fill: vi.fn().mockResolvedValue(undefined),
+    prependText: vi.fn().mockResolvedValue(true),
     pressKey: vi.fn().mockResolvedValue(undefined),
     readFieldValue: vi.fn().mockResolvedValue('dest@example.com'),
     readInnerHtml: vi.fn().mockResolvedValue(undefined),

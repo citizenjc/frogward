@@ -56,6 +56,14 @@ const COMPOSE_READY_SELECTORS = [
   'h2:has-text("Nova mensagem")'
 ];
 
+const BODY_EDITOR_SELECTORS = [
+  '[contenteditable="true"]',
+  '.fr-element[contenteditable="true"]',
+  '.note-editable[contenteditable="true"]',
+  '.cke_editable',
+  'textarea'
+];
+
 const SEND_ACTION_SELECTORS = [
   'span.button:has-text("Enviar")',
   '[role="button"]:has-text("Enviar")',
@@ -83,6 +91,7 @@ const ERROR_SIGNAL_SELECTORS = [
 
 const SUCCESS_TEXT_MARKERS = ['message sent', 'mensagem enviada', 'email enviado'];
 const ERROR_TEXT_MARKERS = ['failed to send', 'erro ao enviar', 'não foi possível enviar'];
+const FROGWARD_FORWARD_NOTE = 'Automatically forwarded by Frogward.';
 
 export async function forwardMessage({
   config,
@@ -191,6 +200,13 @@ export async function forwardMessage({
       reason: 'recipient_verification_failed',
       stage: 'compose'
     };
+  }
+
+  const noteInserted = await page.prependText(BODY_EDITOR_SELECTORS, FROGWARD_FORWARD_NOTE);
+  if (!noteInserted) {
+    logger.debug('sapo.forward.note_skipped', {
+      messageId: message.id
+    });
   }
 
   const submitted = await page.clickFirst(SEND_ACTION_SELECTORS);

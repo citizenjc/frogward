@@ -11,6 +11,7 @@ export interface BrowserPage {
   goto(url: string): Promise<unknown>;
   reload(): Promise<unknown>;
   fill(selector: string, value: string): Promise<void>;
+  prependText(selectors: string[], text: string): Promise<boolean>;
   pressKey(key: string): Promise<void>;
   readFieldValue(selector: string): Promise<string | undefined>;
   readInnerHtml(selector: string): Promise<string | undefined>;
@@ -136,6 +137,10 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
       async fill(selector: string, value: string): Promise<void> {
         logger.debug('browser.stub.fill', { selector, valueLength: value.length });
       },
+      async prependText(selectors: string[], text: string): Promise<boolean> {
+        logger.debug('browser.stub.prependText', { selectors, textLength: text.length });
+        return selectors.length > 0;
+      },
       async pressKey(key: string): Promise<void> {
         logger.debug('browser.stub.pressKey', { key });
       },
@@ -224,6 +229,65 @@ function createPlaywrightSession(
       },
       fill(selector: string, value: string): Promise<void> {
         return page.fill(selector, value);
+      },
+      async prependText(selectors: string[], text: string): Promise<boolean> {
+        for (const selector of selectors) {
+          const inserted = await page.evaluate(
+            `(${((targetSelector: string, nextText: string) => {
+              const element = document.querySelector(targetSelector);
+              if (
+                !(element instanceof HTMLElement) &&
+                !(element instanceof HTMLTextAreaElement) &&
+                !(element instanceof HTMLInputElement)
+              ) {
+                return false;
+              }
+
+              const note = nextText.trim();
+
+              if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+                const current = element.value || '';
+                if (current.includes(note)) {
+                  return true;
+                }
+
+                element.value = `${note}\n\n${current}`.trimEnd();
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+                element.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+              }
+
+              const currentText = element.innerText || element.textContent || '';
+              if (currentText.includes(note)) {
+                return true;
+              }
+
+              const doc = element.ownerDocument;
+              const noteNode = doc.createElement('div');
+              noteNode.textContent = note;
+              const spacerNode = doc.createElement('div');
+              spacerNode.innerHTML = '<br>';
+
+              if (element.firstChild) {
+                element.insertBefore(spacerNode, element.firstChild);
+                element.insertBefore(noteNode, spacerNode);
+              } else {
+                element.appendChild(noteNode);
+                element.appendChild(spacerNode);
+              }
+
+              element.dispatchEvent(new Event('input', { bubbles: true }));
+              element.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }).toString()})(${JSON.stringify(selector)}, ${JSON.stringify(text)})`
+          );
+
+          if (inserted === true) {
+            return true;
+          }
+        }
+
+        return false;
       },
       pressKey(key: string): Promise<void> {
         return page.keyboard.press(key);

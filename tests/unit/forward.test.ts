@@ -86,6 +86,7 @@ function createPageStub(overrides: Partial<Record<string, unknown>> = {}) {
     goto: vi.fn().mockResolvedValue(null),
     reload: vi.fn().mockResolvedValue(null),
     fill: vi.fn().mockResolvedValue(undefined),
+    prependText: vi.fn().mockResolvedValue(true),
     pressKey: vi.fn().mockResolvedValue(undefined),
     readFieldValue: vi.fn().mockResolvedValue('dest@example.com'),
     readInnerHtml: vi
@@ -136,6 +137,10 @@ describe('forward module', () => {
     expect(page.fill).toHaveBeenCalledWith(
       '.recipents-list input[type="text"]',
       'dest@example.com'
+    );
+    expect(page.prependText).toHaveBeenCalledWith(
+      expect.arrayContaining(['[contenteditable="true"]', 'textarea']),
+      'Automatically forwarded by Frogward.'
     );
     expect(page.pressKey).toHaveBeenCalledWith('Enter');
   });
