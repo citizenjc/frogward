@@ -4,6 +4,9 @@
 
 Frogward is a simple self-hosted forwarding service for people who want their SAPO email to end up somewhere more reliable.
 
+> [!IMPORTANT]  
+> This project is mostly vibe coded. Manual inspection and refinement was done for security, but I still advise you to run this on an isolated environment.
+
 ---
 
 ## What Frogward does
