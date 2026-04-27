@@ -43,7 +43,7 @@ docker compose down
 These are the only values most people need to care about at first:
 
 ```env
-SAPO_USERNAME=your-sapo-email
+SAPO_EMAIL=your-sapo-email
 SAPO_PASSWORD=your-password
 DESTINATION_EMAIL=your-other-email@example.com
 POLL_INTERVAL_MS=60000

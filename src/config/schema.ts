@@ -1,6 +1,6 @@
 export interface AppConfig {
   mode: 'scaffold' | 'live';
-  sapoUsername: string;
+  sapoEmail: string;
   sapoPassword: string;
   destinationEmail?: string;
   pollIntervalMs: number;
@@ -34,7 +34,7 @@ type ParseResult = ParseSuccess | ParseFailure;
 
 export function parseConfig(source: Record<string, string | undefined>): ParseResult {
   const mode = parseMode(source.APP_MODE);
-  const sapoUsername = source.SAPO_USERNAME?.trim() ?? '';
+  const sapoEmail = source.SAPO_EMAIL?.trim() ?? '';
   const sapoPassword = source.SAPO_PASSWORD?.trim() ?? '';
   const destinationEmail = source.DESTINATION_EMAIL?.trim() ?? '';
   const pollIntervalMs = Number(source.POLL_INTERVAL_MS ?? '60000');
@@ -79,8 +79,8 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   }
 
   if (mode === 'live') {
-    if (!sapoUsername) {
-      errors.push('SAPO_USERNAME is required in live mode');
+    if (!sapoEmail) {
+      errors.push('SAPO_EMAIL is required in live mode');
     }
 
     if (!sapoPassword) {
@@ -103,7 +103,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
     ok: true,
     value: {
       mode,
-      sapoUsername,
+      sapoEmail,
       sapoPassword,
       destinationEmail: destinationEmail || undefined,
       pollIntervalMs,

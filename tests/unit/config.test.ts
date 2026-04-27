@@ -7,7 +7,7 @@ describe('config schema', () => {
   it('parses live-mode required fields', () => {
     const result = parseConfig({
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       STORAGE_STATE_PATH: 'tmp/sapo/session.auth.json',
       DESTINATION_EMAIL: 'dest@example.com'
@@ -21,7 +21,7 @@ describe('config schema', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toContain('SAPO_USERNAME is required in live mode');
+      expect(result.error).toContain('SAPO_EMAIL is required in live mode');
       expect(result.error).toContain('SAPO_PASSWORD is required in live mode');
     }
   });
@@ -29,7 +29,7 @@ describe('config schema', () => {
   it('requires destination email in live mode when forwarding is enabled', () => {
     const result = parseConfig({
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       FORWARDING_ENABLED: 'true'
     });
@@ -45,7 +45,7 @@ describe('config schema', () => {
   it('parses forwarding filter patterns from env', () => {
     const result = parseConfig({
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       STORAGE_STATE_PATH: 'tmp/sapo/session.auth.json',
       DESTINATION_EMAIL: 'dest@example.com',
@@ -78,7 +78,7 @@ describe('config schema', () => {
   it('defaults storage state path in live mode', () => {
     const result = parseConfig({
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       DESTINATION_EMAIL: 'dest@example.com'
     });
@@ -113,7 +113,7 @@ describe('config schema', () => {
   it('allows live mode without storage persistence when disabled', () => {
     const result = parseConfig({
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       DESTINATION_EMAIL: 'dest@example.com',
       PERSIST_STORAGE_STATE: 'false'

@@ -34,7 +34,7 @@ That also keeps it running, checking for new mail and forwarding matching messag
 
 Minimum values for a normal first run:
 
-- `SAPO_USERNAME=...`
+- `SAPO_EMAIL=...`
 - `SAPO_PASSWORD=...`
 - `DESTINATION_EMAIL=...`
 - `POLL_INTERVAL_MS=60000`

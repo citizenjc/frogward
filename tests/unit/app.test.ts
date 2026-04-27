@@ -15,7 +15,7 @@ function createLogger() {
 function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     mode: 'scaffold',
-    sapoUsername: '',
+    sapoEmail: '',
     sapoPassword: '',
     destinationEmail: 'dest@example.com',
     pollIntervalMs: 60000,

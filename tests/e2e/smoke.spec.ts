@@ -104,7 +104,7 @@ test('live mode requires destination email when forwarding is enabled', async ()
       ...process.env,
       DOTENV_CONFIG_PATH: join(tmpdir(), 'frogward-empty.env'),
       APP_MODE: 'live',
-      SAPO_USERNAME: 'user@example.com',
+      SAPO_EMAIL: 'user@example.com',
       SAPO_PASSWORD: 'secret',
       DESTINATION_EMAIL: ''
     }

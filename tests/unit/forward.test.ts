@@ -5,7 +5,7 @@ import { forwardMessage } from '../../src/modules/forward.js';
 function createConfig(destinationEmail: string | undefined = 'dest@example.com') {
   return {
     mode: 'live' as const,
-    sapoUsername: 'user@example.com',
+    sapoEmail: 'user@example.com',
     sapoPassword: 'secret',
     destinationEmail,
     pollIntervalMs: 60000,

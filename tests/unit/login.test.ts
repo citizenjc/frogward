@@ -8,7 +8,7 @@ describe('login module', () => {
     const result = await loginToSapo({
       config: {
         mode: 'live',
-        sapoUsername: 'user@example.com',
+        sapoEmail: 'user@example.com',
         sapoPassword: 'secret',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -66,7 +66,7 @@ describe('login module', () => {
       loginToSapo({
         config: {
           mode: 'live',
-          sapoUsername: '',
+          sapoEmail: '',
           sapoPassword: '',
           destinationEmail: undefined,
           pollIntervalMs: 60000,

@@ -47,7 +47,7 @@ docker run --rm -it --env-file .env -v "$(pwd)/tmp:/app/tmp" frogward
 
 For a normal deployment, the only values you realistically need to think about first are:
 
-- `SAPO_USERNAME`
+- `SAPO_EMAIL`
 - `SAPO_PASSWORD`
 - `DESTINATION_EMAIL`
 - `POLL_INTERVAL_MS` (optional, defaults to `60000`)

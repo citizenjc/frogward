@@ -61,7 +61,7 @@ describe('check module', () => {
     const result = await checkInbox({
       config: {
         mode: 'live',
-        sapoUsername: 'user@example.com',
+        sapoEmail: 'user@example.com',
         sapoPassword: 'secret',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -113,7 +113,7 @@ describe('check module', () => {
       checkInbox({
         config: {
           mode: 'live',
-          sapoUsername: 'user@example.com',
+          sapoEmail: 'user@example.com',
           sapoPassword: 'secret',
           destinationEmail: undefined,
           pollIntervalMs: 60000,
@@ -245,7 +245,7 @@ describe('check module', () => {
     const result = await checkInbox({
       config: {
         mode: 'live',
-        sapoUsername: 'user@example.com',
+        sapoEmail: 'user@example.com',
         sapoPassword: 'secret',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -349,7 +349,7 @@ describe('check module', () => {
     const result = await checkInbox({
       config: {
         mode: 'live',
-        sapoUsername: 'user@example.com',
+        sapoEmail: 'user@example.com',
         sapoPassword: 'secret',
         destinationEmail: undefined,
         pollIntervalMs: 60000,

@@ -28,7 +28,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -64,7 +64,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -95,7 +95,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -128,7 +128,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -161,7 +161,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -194,7 +194,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -227,7 +227,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -260,7 +260,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -293,7 +293,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,
@@ -324,7 +324,7 @@ describe('browser wrapper', () => {
     const browser = createBrowserManager({
       config: {
         mode: 'scaffold',
-        sapoUsername: '',
+        sapoEmail: '',
         sapoPassword: '',
         destinationEmail: undefined,
         pollIntervalMs: 60000,

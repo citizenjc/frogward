@@ -46,14 +46,14 @@ export async function loginToSapo({
     return { status: 'interactive-login', inboxReached: true };
   }
 
-  if (!config.sapoUsername || !config.sapoPassword) {
+  if (!config.sapoEmail || !config.sapoPassword) {
     throw new AuthError('Live login requires SAPO credentials.', {
-      usernameConfigured: Boolean(config.sapoUsername)
+      emailConfigured: Boolean(config.sapoEmail)
     });
   }
 
   await performInteractiveLogin(page, {
-    username: config.sapoUsername,
+    username: config.sapoEmail,
     password: config.sapoPassword
   });
 
