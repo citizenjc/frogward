@@ -10,6 +10,7 @@ let stealthConfigured = false;
 export interface BrowserPage {
   goto(url: string): Promise<unknown>;
   reload(): Promise<unknown>;
+  readLinkHrefByText(texts: string[]): Promise<string | undefined>;
   fill(selector: string, value: string): Promise<void>;
   prependText(selectors: string[], text: string): Promise<boolean>;
   pressKey(key: string): Promise<void>;
@@ -134,6 +135,10 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
         logger.debug('browser.stub.reload');
         return null;
       },
+      async readLinkHrefByText(texts: string[]): Promise<string | undefined> {
+        logger.debug('browser.stub.readLinkHrefByText', { texts });
+        return undefined;
+      },
       async fill(selector: string, value: string): Promise<void> {
         logger.debug('browser.stub.fill', { selector, valueLength: value.length });
       },
@@ -226,6 +231,37 @@ function createPlaywrightSession(
       },
       reload(): Promise<unknown> {
         return page.reload({ waitUntil: 'domcontentloaded' });
+      },
+      async readLinkHrefByText(texts: string[]): Promise<string | undefined> {
+        const result = await page.evaluate(
+          `(${((candidateTexts: string[]) => {
+            const normalizedTexts = candidateTexts.map((text) => text.trim().toLowerCase());
+            const links = Array.from(document.querySelectorAll('a[href]'));
+
+            for (const link of links) {
+              const text = (link.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+              if (!text) continue;
+
+              const matches = normalizedTexts.some(
+                (candidate) => text === candidate || text.includes(candidate)
+              );
+              if (!matches) continue;
+
+              const href = link.getAttribute('href');
+              if (!href) continue;
+
+              try {
+                return new URL(href, window.location.href).href;
+              } catch {
+                return href;
+              }
+            }
+
+            return undefined;
+          }).toString()})(${JSON.stringify(texts)})`
+        );
+
+        return typeof result === 'string' ? result : undefined;
       },
       fill(selector: string, value: string): Promise<void> {
         return page.fill(selector, value);

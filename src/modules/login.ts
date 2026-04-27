@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { AuthError } from '../lib/errors.js';
 import type { BrowserPage } from '../lib/browser.js';
+import { resolveInboxUrl } from './mailbox-routes.js';
 import type { LoginResult, ModuleContext } from '../types/runtime.js';
 
 interface LoginInput extends ModuleContext {
@@ -21,7 +22,7 @@ export async function loginToSapo({
     hasStorageState: usingStorageState
   });
 
-  await page.goto('https://mail.sapo.pt/v7/#/messages/SU5CT1g');
+  await page.goto(await resolveInboxUrl(page));
   await handleKnownInterstitials(page);
   logger.info('sapo.login.after_inbox_probe', { url: page.url() });
 

@@ -1,6 +1,7 @@
 import type { BrowserPage } from '../lib/browser.js';
 import { ModuleError } from '../lib/errors.js';
 import { parseInboxRows } from './inbox-parser.js';
+import { resolveInboxUrl } from './mailbox-routes.js';
 import { detectNewMail } from './new-mail-detector.js';
 import type { InboxContext, InboxListingResult } from '../types/runtime.js';
 
@@ -125,7 +126,7 @@ async function buildListingSummary(page: BrowserPage): Promise<{
 }
 
 async function ensureInboxReachable(page: BrowserPage): Promise<{ title: string; url: string }> {
-  await page.goto('https://mail.sapo.pt/v7/#/messages/SU5CT1g');
+  await page.goto(await resolveInboxUrl(page));
   await page.reload();
 
   const inboxVisible = await page.waitForSelector(

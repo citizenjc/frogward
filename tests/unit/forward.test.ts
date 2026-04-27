@@ -85,6 +85,7 @@ function createPageStub(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     goto: vi.fn().mockResolvedValue(null),
     reload: vi.fn().mockResolvedValue(null),
+    readLinkHrefByText: vi.fn().mockResolvedValue(undefined),
     fill: vi.fn().mockResolvedValue(undefined),
     prependText: vi.fn().mockResolvedValue(true),
     pressKey: vi.fn().mockResolvedValue(undefined),

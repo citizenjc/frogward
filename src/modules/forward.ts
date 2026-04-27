@@ -4,6 +4,7 @@ import type {
   ForwardContext,
   ForwardMessageResult
 } from '../types/runtime.js';
+import { resolveInboxUrl, resolveSentUrl } from './mailbox-routes.js';
 
 interface ForwardInput extends ForwardContext {
   page: BrowserPage;
@@ -361,7 +362,7 @@ async function confirmViaSentFolder(
   const currentUrl = page.url();
 
   try {
-    await page.goto('https://mail.sapo.pt/v7/#/messages/RW52aWFkb3M');
+    await page.goto(await resolveSentUrl(page));
     await page.waitForAnySelector(
       ['.list-item', '.messages-list', 'h2:has-text("Enviados")'],
       8_000
@@ -380,6 +381,6 @@ async function confirmViaSentFolder(
 
     return undefined;
   } finally {
-    await page.goto(currentUrl || 'https://mail.sapo.pt/v7/#/messages/SU5CT1g');
+    await page.goto(currentUrl || (await resolveInboxUrl(page)));
   }
 }
