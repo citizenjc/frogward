@@ -127,8 +127,29 @@ async function buildListingSummary(page: BrowserPage): Promise<{
 
 async function ensureInboxReachable(page: BrowserPage): Promise<{ title: string; url: string }> {
   await page.goto(await resolveInboxUrl(page));
-  await page.reload();
 
+  let reachability = await readInboxReachability(page);
+  if (reachability.ok) {
+    return { title: reachability.title, url: reachability.url };
+  }
+
+  await page.reload();
+  reachability = await readInboxReachability(page);
+  if (reachability.ok) {
+    return { title: reachability.title, url: reachability.url };
+  }
+
+  throw new ModuleError('check', 'Inbox not reachable during probe.', {
+    url: reachability.url,
+    title: reachability.title
+  });
+}
+
+async function readInboxReachability(page: BrowserPage): Promise<{
+  ok: boolean;
+  title: string;
+  url: string;
+}> {
   const inboxVisible = await page.waitForSelector(
     'a[href*="inbox"], [data-folder="inbox"], [href*="#/messages/SU5CT1g"]',
     8_000
@@ -141,16 +162,11 @@ async function ensureInboxReachable(page: BrowserPage): Promise<{ title: string;
     html.includes('Nova mensagem') &&
     html.includes('Definições');
 
-  if (
-    !inboxVisible &&
-    !title.includes('Caixa de Entrada') &&
-    !url.includes('/messages/SU5CT1g') &&
-    !hasInboxShellSignals
-  ) {
-    throw new ModuleError('check', 'Inbox not reachable during probe.', {
-      url
-    });
-  }
+  const ok =
+    inboxVisible ||
+    title.includes('Caixa de Entrada') ||
+    url.includes('/messages/SU5CT1g') ||
+    hasInboxShellSignals;
 
-  return { title, url };
+  return { ok, title, url };
 }
