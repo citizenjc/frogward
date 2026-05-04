@@ -45,7 +45,7 @@ export function parseConfig(source: Record<string, string | undefined>): ParseRe
   const persistStorageState = parseBoolean(source.PERSIST_STORAGE_STATE, true);
   const artifactDir = source.ARTIFACT_DIR?.trim() || 'tmp/live-artifacts';
   const captureScreenshotOnFailure = parseBoolean(source.CAPTURE_SCREENSHOT_ON_FAILURE, true);
-  const captureTraceOnFailure = parseBoolean(source.CAPTURE_TRACE_ON_FAILURE, true);
+  const captureTraceOnFailure = parseBoolean(source.CAPTURE_TRACE_ON_FAILURE, false);
   const forwardingEnabled = parseBoolean(source.FORWARDING_ENABLED, true);
   const forwardAllowSenderPatterns = parsePatterns(source.FORWARD_ALLOW_SENDERS);
   const forwardBlockSenderPatterns = parsePatterns(source.FORWARD_BLOCK_SENDERS);

@@ -38,8 +38,11 @@ Minimum values for a normal first run:
 - `SAPO_PASSWORD=...`
 - `DESTINATION_EMAIL=...`
 - `POLL_INTERVAL_MS=60000`
+- `CAPTURE_TRACE_ON_FAILURE=false`
 
 `POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds.
+
+Keep `CAPTURE_TRACE_ON_FAILURE=false` unless you are actively debugging a failure.
 
 Advanced forwarding and troubleshooting options are covered in the other docs.
 

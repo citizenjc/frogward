@@ -47,9 +47,12 @@ SAPO_EMAIL=your-sapo-email
 SAPO_PASSWORD=your-password
 DESTINATION_EMAIL=your-other-email@example.com
 POLL_INTERVAL_MS=60000
+CAPTURE_TRACE_ON_FAILURE=false
 ```
 
 `POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds. Lower is faster but noisier/heavier; higher is quieter/lighter.
+
+`CAPTURE_TRACE_ON_FAILURE=false` keeps Playwright trace capture off by default. Only turn it on temporarily for troubleshooting.
 
 Everything else can stay on the defaults when you are starting out.
 

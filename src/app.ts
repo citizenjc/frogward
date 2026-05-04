@@ -35,7 +35,10 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
         const tracePath = join(config.artifactDir, 'trace', `probe-${Date.now()}.zip`);
         let failed = false;
 
-        if (config.mode === 'live' && config.captureTraceOnFailure) {
+        const traceEnabled =
+          config.mode === 'live' && config.captureTraceOnFailure && options.mode !== 'service';
+
+        if (traceEnabled) {
           await mkdir(join(config.artifactDir, 'trace'), { recursive: true });
           await runModule('app', () => session.startTrace('sapo-live-probe'));
         }
@@ -243,7 +246,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           await captureFailureArtifacts(config, logger, session, tracePath);
           throw error;
         } finally {
-          if (config.mode === 'live' && config.captureTraceOnFailure && failed) {
+          if (traceEnabled && failed) {
             await runModule('app', () => session.stopTrace(tracePath));
             logger.info('app.trace.saved', { tracePath });
           }

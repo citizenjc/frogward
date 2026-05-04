@@ -51,6 +51,7 @@ For a normal deployment, the only values you realistically need to think about f
 - `SAPO_PASSWORD`
 - `DESTINATION_EMAIL`
 - `POLL_INTERVAL_MS` (optional, defaults to `60000`)
+- `CAPTURE_TRACE_ON_FAILURE` (optional, defaults to `false`)
 
 Keep the rest on defaults until you actually need to tune them.
 
