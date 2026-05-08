@@ -364,7 +364,7 @@ function createPlaywrightSession(
       async clickFirst(selectors: string[]): Promise<boolean> {
         for (const selector of selectors) {
           try {
-            await page.waitForSelector(selector, { timeout: 1_500 });
+            await page.waitForSelector(selector, { timeout: 3_000 });
             await page.click(selector);
             return true;
           } catch {
