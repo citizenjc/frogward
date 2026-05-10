@@ -42,6 +42,7 @@ Minimum values for a normal first run:
 `POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds.
 
 If you are actively debugging a failure, you can temporarily enable `CAPTURE_TRACE_ON_FAILURE=true`.
+That will save Playwright traces for fatal live-mode failures and for handled forward failures while running the service automation flow.
 
 Advanced forwarding and troubleshooting options are covered in the other docs.
 

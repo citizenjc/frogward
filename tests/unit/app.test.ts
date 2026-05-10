@@ -74,16 +74,17 @@ function createPage(overrides: Record<string, unknown> = {}) {
 }
 
 function createBrowser(page: Record<string, unknown>) {
+  const session = {
+    usingStorageState: false,
+    startTrace: vi.fn().mockResolvedValue(undefined),
+    stopTrace: vi.fn().mockResolvedValue(undefined),
+    saveStorageState: vi.fn().mockResolvedValue(undefined),
+    page
+  };
+
   return {
-    withSession: vi.fn(async (callback) =>
-      callback({
-        usingStorageState: false,
-        startTrace: vi.fn().mockResolvedValue(undefined),
-        stopTrace: vi.fn().mockResolvedValue(undefined),
-        saveStorageState: vi.fn().mockResolvedValue(undefined),
-        page
-      })
-    )
+    session,
+    withSession: vi.fn(async (callback) => callback(session))
   };
 }
 
@@ -396,6 +397,103 @@ describe('app forwarding orchestration', () => {
       expect(logger.info).toHaveBeenCalledWith(
         'app.forward.complete',
         expect.objectContaining({ successCount: 1 })
+      );
+    } finally {
+      process.on = originalOn;
+      process.off = originalOff;
+    }
+  });
+
+  it('captures handled forward failure traces in service mode when enabled', async () => {
+    const logger = createLogger();
+    const page = createPage({
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item" data-message-id="m-trace"><span class="from">Revolut</span><span class="subject">Pagamento aprovado</span><span class="datetime">Hoje</span></div>'
+        ),
+      waitForAnySelector: vi.fn().mockImplementation(async (selectors: string[]) => {
+        if (selectors.includes('input[data-test="forward-recipient"]')) {
+          return 'input[data-test="forward-recipient"]';
+        }
+
+        if (selectors.includes('[role="status"]')) {
+          return undefined;
+        }
+
+        if (selectors.includes('.toast-error')) {
+          return '.toast-error';
+        }
+
+        return selectors[0];
+      }),
+      contentIncludesAny: vi.fn().mockResolvedValue(false)
+    });
+    const browser = createBrowser(page);
+    const state = createState({
+      load: vi.fn().mockResolvedValue({
+        seen: [
+          {
+            id: 'old-seen',
+            firstSeenAt: '2026-04-24T00:00:00.000Z',
+            lastSeenAt: '2026-04-24T00:00:00.000Z',
+            source: 'sapo-row-id',
+            confidence: 'high'
+          }
+        ],
+        forwarded: [],
+        scan: {
+          scanCount: 1,
+          lastNewCount: 0,
+          lastScanAt: '2026-04-24T00:00:00.000Z',
+          bootstrapCompletedAt: '2026-04-24T00:00:00.000Z'
+        }
+      })
+    });
+
+    const originalOn = process.on;
+    const originalOff = process.off;
+    const signalHandlers = new Map<string, () => void>();
+    process.on = ((event: string, handler: () => void) => {
+      signalHandlers.set(event, handler);
+      return process;
+    }) as typeof process.on;
+    process.off = ((event: string) => {
+      signalHandlers.delete(event);
+      return process;
+    }) as typeof process.off;
+
+    try {
+      const app = createApp({
+        config: createConfig({
+          mode: 'live',
+          forwardAllowSenderPatterns: ['revolut'],
+          pollIntervalMs: 10,
+          pollErrorBackoffMs: 10,
+          captureTraceOnFailure: true
+        }),
+        logger,
+        browser,
+        state
+      });
+
+      const runPromise = app.run({ mode: 'service', safetyLevel: 'forward' });
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      signalHandlers.get('SIGINT')?.();
+      await runPromise;
+
+      expect(browser.session.startTrace).toHaveBeenCalled();
+      expect(browser.session.stopTrace).toHaveBeenCalledWith(
+        expect.stringMatching(/tmp\/live-artifacts\/trace\/forward-m-trace-\d+\.zip$/)
+      );
+      expect(page.screenshot).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        'app.trace.saved',
+        expect.objectContaining({
+          messageId: 'm-trace',
+          reason: 'send_failed',
+          stage: 'confirm'
+        })
       );
     } finally {
       process.on = originalOn;

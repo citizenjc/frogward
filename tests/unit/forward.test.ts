@@ -43,7 +43,12 @@ function createPageStub(overrides: Partial<Record<string, unknown>> = {}) {
 
     if (
       selectors.some(
-        (selector) => selector.includes('26206') || selector.includes('.list-item.focus')
+        (selector) =>
+          selector.includes('26206') ||
+          selector.includes('data-message-id="26206"') ||
+          selector.includes('data-key="26206"') ||
+          selector.includes('data-id="26206"') ||
+          selector.includes('.list-item.focus')
       )
     ) {
       return true;
@@ -118,6 +123,24 @@ const message = {
   confidence: 'high' as const
 };
 
+const rowIdMessage = {
+  id: 'm-1001',
+  from: 'Banco BPI',
+  subject: 'BPI Bank: Message from your Manager',
+  receivedAt: 'Ontem, 15:05',
+  source: 'sapo-row-id' as const,
+  confidence: 'high' as const
+};
+
+const dataKeyMessage = {
+  id: '129990',
+  from: 'Banco BPI',
+  subject: 'BPI Bank: Message from your Manager',
+  receivedAt: 'Ontem, 15:05',
+  source: 'sapo-row-id' as const,
+  confidence: 'high' as const
+};
+
 describe('forward module', () => {
   it('confirms success only after positive post-submit signal', async () => {
     const page = createPageStub();
@@ -144,6 +167,108 @@ describe('forward module', () => {
       'Automatically forwarded by Frogward.'
     );
     expect(page.pressKey).toHaveBeenCalledWith('Enter');
+  });
+
+  it('prefers data-message-id selectors for sapo row ids', async () => {
+    const page = createPageStub({
+      clickFirst: vi.fn().mockImplementation(async (selectors: string[]) => {
+        if (selectors.some((selector) => selector.includes('ACEITAR'))) return false;
+        if (selectors.some((selector) => selector.includes('data-message-id="m-1001"'))) {
+          return true;
+        }
+        if (
+          selectors.some(
+            (selector) => selector.includes('Encaminhar') || selector.includes('Forward')
+          )
+        ) {
+          return true;
+        }
+        if (
+          selectors.some((selector) => selector.includes('Enviar') || selector.includes('submit'))
+        ) {
+          return true;
+        }
+        return false;
+      })
+    });
+
+    const result = await forwardMessage({
+      config: createConfig(),
+      logger: createLogger(),
+      message: rowIdMessage,
+      page
+    });
+
+    expect(result.status).toBe('success');
+    const openSelectors = page.clickFirst.mock.calls[1]?.[0];
+    expect(openSelectors[0]).toBe('.list-item[data-message-id="m-1001"]');
+    expect(openSelectors[1]).toBe('.list-item[data-key="m-1001"]');
+    expect(openSelectors[2]).toBe('.list-item[data-id="m-1001"]');
+    expect(openSelectors[3]).toBe('.list-item[data-message-id="m-1001"] .container');
+    expect(openSelectors).toContain('.list-item[data-message-id="m-1001"]');
+    expect(openSelectors).toContain('.list-item:has(input[id="m-1001"]) .container');
+    expect(openSelectors.indexOf('.list-item[data-message-id="m-1001"]')).toBeLessThan(
+      openSelectors.indexOf('.list-item:has(input[id="m-1001"]) .container')
+    );
+  });
+
+  it('includes data-key selectors for sapo row ids', async () => {
+    const page = createPageStub({
+      clickFirst: vi.fn().mockImplementation(async (selectors: string[]) => {
+        if (selectors.some((selector) => selector.includes('ACEITAR'))) return false;
+        if (selectors.some((selector) => selector.includes('data-key="129990"'))) {
+          return true;
+        }
+        if (
+          selectors.some(
+            (selector) => selector.includes('Encaminhar') || selector.includes('Forward')
+          )
+        ) {
+          return true;
+        }
+        if (
+          selectors.some((selector) => selector.includes('Enviar') || selector.includes('submit'))
+        ) {
+          return true;
+        }
+        return false;
+      })
+    });
+
+    const result = await forwardMessage({
+      config: createConfig(),
+      logger: createLogger(),
+      message: dataKeyMessage,
+      page
+    });
+
+    expect(result.status).toBe('success');
+    const openSelectors = page.clickFirst.mock.calls[1]?.[0];
+    expect(openSelectors).toContain('.list-item[data-key="129990"]');
+    expect(openSelectors).toContain('.list-item[data-key="129990"] .container');
+    expect(openSelectors.indexOf('.list-item[data-key="129990"]')).toBeLessThan(
+      openSelectors.indexOf('.list-item:has(input[id="129990"]) .container')
+    );
+  });
+
+  it('prefers input selectors for dom fallback ids', async () => {
+    const page = createPageStub();
+
+    const result = await forwardMessage({
+      config: createConfig(),
+      logger: createLogger(),
+      message: { ...message, source: 'dom-fallback' as const },
+      page
+    });
+
+    expect(result.status).toBe('success');
+    const openSelectors = page.clickFirst.mock.calls[1]?.[0];
+    expect(openSelectors[0]).toBe('.list-item:has(input[id="26206"]) .container');
+    expect(openSelectors[1]).toBe('.list-item:has(input[id="26206"]) .content');
+    expect(openSelectors).toContain('.list-item[data-message-id="26206"] .container');
+    expect(openSelectors.indexOf('.list-item:has(input[id="26206"]) .container')).toBeLessThan(
+      openSelectors.indexOf('.list-item[data-message-id="26206"] .container')
+    );
   });
 
   it('returns failure when destination is missing', async () => {
@@ -174,7 +299,7 @@ describe('forward module', () => {
     const result = await forwardMessage({
       config: createConfig(),
       logger: createLogger(),
-      message,
+      message: rowIdMessage,
       page
     });
 
