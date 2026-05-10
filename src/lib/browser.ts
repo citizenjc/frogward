@@ -500,6 +500,9 @@ function createPlaywrightSession(
               const datetime =
                 node.querySelector('.datetime, .date, .time')?.textContent?.trim() || '';
               const preview = node.querySelector('.preview, .snippet')?.textContent?.trim() || '';
+              const messageId = node.getAttribute('data-message-id') || '';
+              const dataKey = node.getAttribute('data-key') || '';
+              const nativeDataId = node.getAttribute('data-id') || '';
               const inputId = node.querySelector('input[id]')?.getAttribute('id') || '';
               const rowType =
                 cls.includes('ad') || cls.includes('adds-messages-list') ? 'ad' : 'message';
@@ -508,7 +511,10 @@ function createPlaywrightSession(
                 '<div class="mail-item ' +
                 cls.split(' ').filter(Boolean).join(' ').trim() +
                 '"' +
-                (inputId ? ' data-id="' + escape(inputId) + '"' : '') +
+                (messageId ? ' data-message-id="' + escape(messageId) + '"' : '') +
+                (dataKey ? ' data-key="' + escape(dataKey) + '"' : '') +
+                (nativeDataId ? ' data-id="' + escape(nativeDataId) + '"' : '') +
+                (inputId ? ' data-input-id="' + escape(inputId) + '"' : '') +
                 (isUnread ? ' data-unread="true"' : '') +
                 ' data-row-type="' +
                 rowType +

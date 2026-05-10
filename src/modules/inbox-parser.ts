@@ -126,13 +126,13 @@ function parseMessageRow(row: RawRow, parserFallbacksUsed: Set<string>): Message
       extractByRegex(row.html, /class="[^"]*(?:preview|snippet)[^"]*"[^>]*>([^<]+)/i) ?? undefined,
     rowType: 'message',
     source:
-      row.attributes['data-message-id'] || row.attributes['data-id']
+      row.attributes['data-message-id'] || row.attributes['data-key'] || row.attributes['data-id']
         ? 'sapo-row-id'
         : extractByRegex(row.html, /<input[^>]*id="([^"]+)"/i)
           ? 'dom-fallback'
           : 'subject-time-hash',
     confidence:
-      row.attributes['data-message-id'] || row.attributes['data-id']
+      row.attributes['data-message-id'] || row.attributes['data-key'] || row.attributes['data-id']
         ? 'high'
         : receivedAt
           ? 'medium'

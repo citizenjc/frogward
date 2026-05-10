@@ -24,15 +24,23 @@ const OPEN_MESSAGE_SELECTORS = (
   source?: ForwardContext['message']['source']
 ): string[] => {
   const attributeSelectors = [
+    `.list-item[data-message-id="${messageId}"]`,
+    `.list-item[data-key="${messageId}"]`,
+    `.list-item[data-id="${messageId}"]`,
     `.list-item[data-message-id="${messageId}"] .container`,
+    `.list-item[data-key="${messageId}"] .container`,
     `.list-item[data-id="${messageId}"] .container`,
     `.list-item[data-message-id="${messageId}"] .content`,
+    `.list-item[data-key="${messageId}"] .content`,
     `.list-item[data-id="${messageId}"] .content`,
     `.mail-item[data-message-id="${messageId}"]`,
+    `.mail-item[data-key="${messageId}"]`,
     `.mail-item[data-id="${messageId}"]`,
     `[data-message-id="${messageId}"] .container`,
+    `[data-key="${messageId}"] .container`,
     `[data-id="${messageId}"] .container`,
     `[data-message-id="${messageId}"]`,
+    `[data-key="${messageId}"]`,
     `[data-id="${messageId}"]`
   ];
 
