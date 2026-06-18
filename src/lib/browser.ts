@@ -489,7 +489,7 @@ function createPlaywrightSession(
               );
             });
 
-            const escape = (value: string): string =>
+            const escape = (value) =>
               value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
             const normalizedRows = nodes.map((node) => {
