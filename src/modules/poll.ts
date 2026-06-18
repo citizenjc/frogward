@@ -1,8 +1,11 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { AppConfig } from '../config/schema.js';
+import { isAppError } from '../lib/errors.js';
 import type { Logger } from '../lib/logger.js';
 import type { InboxListingResult, PollCycleSummary } from '../types/runtime.js';
+
+const FIRST_CYCLE_RETRY_DELAY_MS = 2_000;
 
 export interface PollController {
   stop(): void;
@@ -39,7 +42,7 @@ export function createPollController(deps: PollDependencies): PollController {
       deps.logger.debug('poll.cycle.start', { cycle, startedAt });
 
       try {
-        const result = await deps.check();
+        const result = await runCheck(cycle);
         if (deps.afterCheck) {
           await deps.afterCheck(result);
         }
@@ -82,7 +85,14 @@ export function createPollController(deps: PollDependencies): PollController {
       } catch (error) {
         deps.logger.error('poll.cycle.error', {
           cycle,
-          message: error instanceof Error ? error.message : 'unknown'
+          message: error instanceof Error ? error.message : 'unknown',
+          ...(isAppError(error)
+            ? {
+                code: error.code,
+                retryable: error.retryable,
+                ...error.details
+              }
+            : {})
         });
 
         if (stopped) {
@@ -94,5 +104,31 @@ export function createPollController(deps: PollDependencies): PollController {
     }
 
     deps.logger.info('poll.stopped');
+  }
+
+  async function runCheck(cycle: number): Promise<InboxListingResult> {
+    try {
+      return await deps.check();
+    } catch (error) {
+      if (cycle !== 1 || stopped) {
+        throw error;
+      }
+
+      deps.logger.warn('poll.cycle.retrying', {
+        cycle,
+        delayMs: FIRST_CYCLE_RETRY_DELAY_MS,
+        message: error instanceof Error ? error.message : 'unknown',
+        ...(isAppError(error)
+          ? {
+              code: error.code,
+              retryable: error.retryable,
+              ...error.details
+            }
+          : {})
+      });
+
+      await sleep(FIRST_CYCLE_RETRY_DELAY_MS);
+      return deps.check();
+    }
   }
 }
