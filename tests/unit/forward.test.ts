@@ -525,4 +525,35 @@ describe('forward module', () => {
       confirmation: { via: 'content', signal: 'sent-folder:dest@example.com' }
     });
   });
+
+  it('treats dismissed compose view as success fallback when no explicit error appears', async () => {
+    const page = createPageStub({
+      contentIncludesAny: vi.fn().mockResolvedValue(false),
+      waitForAnySelector: vi.fn().mockImplementation(async (selectors: string[]) => {
+        if (selectors.includes('.clear.button')) return '.clear.button';
+        if (selectors.includes('.recipents-list') || selectors.includes('#subject'))
+          return '.recipents-list';
+        if (selectors.includes('.recipents-list input[type="text"]'))
+          return '.recipents-list input[type="text"]';
+        if (selectors.includes('.messages-list')) return '.messages-list';
+        if (selectors.includes('.list-item')) return '.list-item';
+        return undefined;
+      }),
+      content: vi.fn().mockResolvedValue('<html><body><div class="messages-list"></div></body></html>'),
+      isVisible: vi.fn().mockResolvedValue(false)
+    });
+
+    const result = await forwardMessage({
+      config: createConfig(),
+      logger: createLogger(),
+      message,
+      page
+    });
+
+    expect(result).toEqual({
+      messageId: '26206',
+      status: 'success',
+      confirmation: { via: 'content', signal: 'compose-dismissed' }
+    });
+  });
 });

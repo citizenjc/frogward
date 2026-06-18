@@ -380,6 +380,11 @@ async function confirmForwardOutcome(
     return { outcome: 'success', signal: sentFolderConfirmation };
   }
 
+  const composeDismissedConfirmation = await confirmViaComposeDismissed(page);
+  if (composeDismissedConfirmation) {
+    return { outcome: 'success', signal: composeDismissedConfirmation };
+  }
+
   return { outcome: 'unknown' };
 }
 
@@ -426,4 +431,28 @@ async function confirmViaSentFolder(
   } finally {
     await page.goto(currentUrl || (await resolveInboxUrl(page)));
   }
+}
+
+async function confirmViaComposeDismissed(
+  page: BrowserPage
+): Promise<ForwardConfirmationSignal | undefined> {
+  const composeSignals = [
+    ...RECIPIENT_INPUT_SELECTORS,
+    ...RECIPIENT_CONTAINER_SELECTORS,
+    ...SEND_ACTION_SELECTORS,
+    ...BODY_EDITOR_SELECTORS
+  ];
+
+  for (const selector of composeSignals) {
+    if (await page.isVisible(selector).catch(() => false)) {
+      return undefined;
+    }
+  }
+
+  const currentUrl = page.url().toLowerCase();
+  if (currentUrl.includes('/#/messages/')) {
+    return { via: 'content', signal: 'compose-dismissed' };
+  }
+
+  return undefined;
 }
