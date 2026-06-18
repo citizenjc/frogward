@@ -52,6 +52,7 @@ POLL_INTERVAL_MS=60000
 `POLL_INTERVAL_MS=60000` means Frogward checks every 60 seconds. Lower is faster but noisier/heavier; higher is quieter/lighter.
 
 If you need deep Playwright failure traces for debugging, you can temporarily set `CAPTURE_TRACE_ON_FAILURE=true`.
+Frogward will then save traces for fatal live-mode failures and for handled forward failures in service mode, alongside the usual failure HTML and screenshots.
 
 Everything else can stay on the defaults when you are starting out.
 

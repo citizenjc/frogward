@@ -12,7 +12,8 @@ import { forwardMessage } from './modules/forward.js';
 import { loginToSapo } from './modules/login.js';
 import { createPollController } from './modules/poll.js';
 import { createStateStore } from './modules/state.js';
-import type { AppRuntime, RunOptions } from './types/runtime.js';
+import type { StateSnapshot } from './modules/state.js';
+import type { AppRuntime, InboxListingResult, RunOptions } from './types/runtime.js';
 
 export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
   return {
@@ -34,13 +35,16 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
       await browser.withSession(async (session) => {
         const tracePath = join(config.artifactDir, 'trace', `probe-${Date.now()}.zip`);
         let failed = false;
+        let traceActive = false;
 
         const traceEnabled =
           config.mode === 'live' && config.captureTraceOnFailure && options.mode !== 'service';
+        const handledForwardTraceEnabled = config.mode === 'live' && config.captureTraceOnFailure;
 
         if (traceEnabled) {
           await mkdir(join(config.artifactDir, 'trace'), { recursive: true });
           await runModule('app', () => session.startTrace('sapo-live-probe'));
+          traceActive = true;
         }
 
         const page = session.page;
@@ -79,7 +83,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               throw new ModuleError('forward', 'DESTINATION_EMAIL is required for forward mode.');
             }
 
-            const candidates = listing.newMessages ?? [];
+            const candidates = collectForwardCandidates(listing, snapshotForForward);
             if (candidates.length > 0 || !quietNoop) {
               logger.info('app.forward.start', { candidateCount: candidates.length });
             } else {
@@ -115,11 +119,31 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
                 continue;
               }
 
+              const perMessageTracePath =
+                handledForwardTraceEnabled && options.mode === 'service'
+                  ? join(
+                      config.artifactDir,
+                      'trace',
+                      `forward-${sanitizeArtifactToken(message.id)}-${Date.now()}.zip`
+                    )
+                  : undefined;
+
+              if (perMessageTracePath) {
+                await mkdir(join(config.artifactDir, 'trace'), { recursive: true });
+                await runModule('app', () =>
+                  session.startTrace(`sapo-forward-${sanitizeArtifactToken(message.id)}`)
+                );
+              }
+
               const result = await runModule('forward', () =>
                 forwardMessage({ config, logger, page, message })
               );
 
               if (result.status === 'success') {
+                if (perMessageTracePath) {
+                  await runModule('app', () => session.stopTrace());
+                }
+
                 const previousAttempts = forwardedRecords.get(message.id)?.attempts ?? 0;
                 const record = {
                   id: message.id,
@@ -146,6 +170,37 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               await state.markForwarded(record);
               forwardedRecords.set(message.id, record);
               outcomeCounts.failed += 1;
+
+              const failureArtifactTag = `forward-${sanitizeArtifactToken(message.id)}-${result.stage ?? 'unknown'}`;
+              let failureTracePath = perMessageTracePath;
+
+              if (!failureTracePath && traceEnabled && traceActive) {
+                failureTracePath = join(
+                  config.artifactDir,
+                  'trace',
+                  `${failureArtifactTag}-${Date.now()}.zip`
+                );
+                traceActive = false;
+              }
+
+              if (failureTracePath) {
+                await saveTraceArtifact(session, logger, failureTracePath, {
+                  messageId: message.id,
+                  reason: record.reason,
+                  stage: result.stage ?? 'unknown'
+                });
+              }
+
+              await captureFailureArtifacts(config, logger, session, {
+                artifactTag: failureArtifactTag,
+                tracePath: failureTracePath
+              });
+
+              if (!perMessageTracePath && traceEnabled) {
+                await runModule('app', () => session.startTrace('sapo-live-probe'));
+                traceActive = true;
+              }
+
               logger.warn('app.forward.failed', {
                 messageId: message.id,
                 stage: result.stage ?? 'unknown',
@@ -243,12 +298,17 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           }
         } catch (error) {
           failed = true;
-          await captureFailureArtifacts(config, logger, session, tracePath);
+          if (traceEnabled && traceActive) {
+            await saveTraceArtifact(session, logger, tracePath);
+            traceActive = false;
+          }
+
+          await captureFailureArtifacts(config, logger, session, { tracePath });
           throw error;
         } finally {
-          if (traceEnabled && failed) {
-            await runModule('app', () => session.stopTrace(tracePath));
-            logger.info('app.trace.saved', { tracePath });
+          if (traceEnabled && failed && traceActive) {
+            await saveTraceArtifact(session, logger, tracePath);
+            traceActive = false;
           }
         }
       });
@@ -256,11 +316,31 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
   };
 }
 
+function collectForwardCandidates(listing: InboxListingResult, snapshot: StateSnapshot) {
+  const candidates = new Map((listing.newMessages ?? []).map((message) => [message.id, message]));
+  const failedForwardIds = new Set(
+    snapshot.forwarded.filter((entry) => entry.status === 'failed').map((entry) => entry.id)
+  );
+
+  for (const message of listing.messages) {
+    if (!failedForwardIds.has(message.id)) {
+      continue;
+    }
+
+    candidates.set(message.id, message);
+  }
+
+  return Array.from(candidates.values());
+}
+
 async function captureFailureArtifacts(
   config: AppRuntime['config'],
   logger: AppRuntime['logger'],
   session: BrowserSession,
-  tracePath: string
+  options: {
+    tracePath?: string;
+    artifactTag?: string;
+  } = {}
 ): Promise<void> {
   if (config.mode !== 'live') {
     return;
@@ -268,20 +348,36 @@ async function captureFailureArtifacts(
 
   const failureDir = join(config.artifactDir, 'failure');
   await mkdir(failureDir, { recursive: true });
+  const artifactSuffix = options.artifactTag ? `-${options.artifactTag}` : '';
 
   if (config.captureScreenshotOnFailure) {
-    const screenshotPath = join(failureDir, `failure-${Date.now()}.png`);
+    const screenshotPath = join(failureDir, `failure${artifactSuffix}-${Date.now()}.png`);
     const outputPath = await session.page.screenshot(screenshotPath);
     logger.error('app.failure.screenshot', summarizeArtifact(outputPath));
   }
 
-  const htmlPath = join(failureDir, `failure-${Date.now()}.html`);
+  const htmlPath = join(failureDir, `failure${artifactSuffix}-${Date.now()}.html`);
   const html = await session.page.content();
   await writeFile(htmlPath, html, 'utf8');
   logger.error('app.failure.html', {
     html: summarizeArtifact(htmlPath),
-    trace: summarizeArtifact(tracePath)
+    trace: options.tracePath ? summarizeArtifact(options.tracePath) : undefined
   });
+}
+
+async function saveTraceArtifact(
+  session: BrowserSession,
+  logger: AppRuntime['logger'],
+  tracePath: string,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  await runModule('app', () => session.stopTrace(tracePath));
+  logger.info('app.trace.saved', { tracePath, ...metadata });
+}
+
+function sanitizeArtifactToken(value: string): string {
+  const sanitized = value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || 'message';
 }
 
 function summarizeArtifact(filePath: string): {

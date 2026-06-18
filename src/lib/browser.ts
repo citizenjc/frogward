@@ -34,7 +34,7 @@ export interface BrowserSession {
   page: BrowserPage;
   usingStorageState: boolean;
   startTrace(name: string): Promise<void>;
-  stopTrace(filePath: string): Promise<string | undefined>;
+  stopTrace(filePath?: string): Promise<string | undefined>;
   saveStorageState(filePath: string): Promise<string | undefined>;
 }
 
@@ -67,7 +67,7 @@ interface BrowserContextHandle {
   storageState(options: { path: string }): Promise<unknown>;
   tracing: {
     start(options: { screenshots: boolean; snapshots: boolean; title: string }): Promise<void>;
-    stop(options: { path: string }): Promise<void>;
+    stop(options?: { path?: string }): Promise<void>;
   };
   close(): Promise<void>;
 }
@@ -204,7 +204,11 @@ function createStubSession(logger: Logger, usingStorageState: boolean): BrowserS
     async startTrace(name: string): Promise<void> {
       logger.debug('browser.stub.trace.start', { name });
     },
-    async stopTrace(filePath: string): Promise<string> {
+    async stopTrace(filePath?: string): Promise<string | undefined> {
+      if (!filePath) {
+        return undefined;
+      }
+
       await ensureParentDirectory(filePath);
       await writeFile(filePath, 'stub trace', 'utf8');
       return filePath;
@@ -364,7 +368,7 @@ function createPlaywrightSession(
       async clickFirst(selectors: string[]): Promise<boolean> {
         for (const selector of selectors) {
           try {
-            await page.waitForSelector(selector, { timeout: 1_500 });
+            await page.waitForSelector(selector, { timeout: 3_000 });
             await page.click(selector);
             return true;
           } catch {
@@ -496,6 +500,9 @@ function createPlaywrightSession(
               const datetime =
                 node.querySelector('.datetime, .date, .time')?.textContent?.trim() || '';
               const preview = node.querySelector('.preview, .snippet')?.textContent?.trim() || '';
+              const messageId = node.getAttribute('data-message-id') || '';
+              const dataKey = node.getAttribute('data-key') || '';
+              const nativeDataId = node.getAttribute('data-id') || '';
               const inputId = node.querySelector('input[id]')?.getAttribute('id') || '';
               const rowType =
                 cls.includes('ad') || cls.includes('adds-messages-list') ? 'ad' : 'message';
@@ -504,7 +511,10 @@ function createPlaywrightSession(
                 '<div class="mail-item ' +
                 cls.split(' ').filter(Boolean).join(' ').trim() +
                 '"' +
-                (inputId ? ' data-id="' + escape(inputId) + '"' : '') +
+                (messageId ? ' data-message-id="' + escape(messageId) + '"' : '') +
+                (dataKey ? ' data-key="' + escape(dataKey) + '"' : '') +
+                (nativeDataId ? ' data-id="' + escape(nativeDataId) + '"' : '') +
+                (inputId ? ' data-input-id="' + escape(inputId) + '"' : '') +
                 (isUnread ? ' data-unread="true"' : '') +
                 ' data-row-type="' +
                 rowType +
@@ -538,7 +548,13 @@ function createPlaywrightSession(
       });
       logger.debug('browser.trace.started', { name });
     },
-    async stopTrace(filePath: string): Promise<string> {
+    async stopTrace(filePath?: string): Promise<string | undefined> {
+      if (!filePath) {
+        await context.tracing.stop({});
+        logger.debug('browser.trace.stopped');
+        return undefined;
+      }
+
       await ensureParentDirectory(filePath);
       await context.tracing.stop({ path: filePath });
       logger.debug('browser.trace.saved', { filePath });

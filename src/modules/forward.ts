@@ -10,17 +10,54 @@ interface ForwardInput extends ForwardContext {
   page: BrowserPage;
 }
 
-const OPEN_MESSAGE_SELECTORS = (messageId: string): string[] => [
-  `.list-item:has(input[id="${messageId}"]) .container`,
-  `.list-item:has(input[id="${messageId}"]) .content`,
-  `label[for="${messageId}"]`,
-  `input[id="${messageId}"]`,
-  `input[value="${messageId}"]`,
-  `[data-message-id="${messageId}"]`,
-  `[data-id="${messageId}"]`,
+const OPEN_MESSAGE_FOCUS_FALLBACK_SELECTORS = [
+  '.list-item.focus .container',
+  '.list-item.focus .content',
   '.list-item.focus',
+  '.mail-item .container',
+  '.mail-item .content',
   '.mail-item'
 ];
+
+const OPEN_MESSAGE_SELECTORS = (
+  messageId: string,
+  source?: ForwardContext['message']['source']
+): string[] => {
+  const attributeSelectors = [
+    `.list-item[data-message-id="${messageId}"]`,
+    `.list-item[data-key="${messageId}"]`,
+    `.list-item[data-id="${messageId}"]`,
+    `.list-item[data-message-id="${messageId}"] .container`,
+    `.list-item[data-key="${messageId}"] .container`,
+    `.list-item[data-id="${messageId}"] .container`,
+    `.list-item[data-message-id="${messageId}"] .content`,
+    `.list-item[data-key="${messageId}"] .content`,
+    `.list-item[data-id="${messageId}"] .content`,
+    `.mail-item[data-message-id="${messageId}"]`,
+    `.mail-item[data-key="${messageId}"]`,
+    `.mail-item[data-id="${messageId}"]`,
+    `[data-message-id="${messageId}"] .container`,
+    `[data-key="${messageId}"] .container`,
+    `[data-id="${messageId}"] .container`,
+    `[data-message-id="${messageId}"]`,
+    `[data-key="${messageId}"]`,
+    `[data-id="${messageId}"]`
+  ];
+
+  const inputSelectors = [
+    `.list-item:has(input[id="${messageId}"]) .container`,
+    `.list-item:has(input[id="${messageId}"]) .content`,
+    `label[for="${messageId}"]`,
+    `input[id="${messageId}"]`,
+    `input[value="${messageId}"]`
+  ];
+
+  if (source === 'dom-fallback') {
+    return [...inputSelectors, ...attributeSelectors, ...OPEN_MESSAGE_FOCUS_FALLBACK_SELECTORS];
+  }
+
+  return [...attributeSelectors, ...inputSelectors, ...OPEN_MESSAGE_FOCUS_FALLBACK_SELECTORS];
+};
 
 const FORWARD_ACTION_SELECTORS = [
   '.message-bottom-actions .clear.button:has-text("Encaminhar")',
@@ -116,7 +153,13 @@ export async function forwardMessage({
 
   await dismissForwardInterstitials(page);
 
-  const opened = await page.clickFirst(OPEN_MESSAGE_SELECTORS(message.id));
+  logger.debug('sapo.forward.open_attempt', {
+    messageId: message.id,
+    source: message.source,
+    selectors: OPEN_MESSAGE_SELECTORS(message.id, message.source)
+  });
+
+  const opened = await page.clickFirst(OPEN_MESSAGE_SELECTORS(message.id, message.source));
   if (!opened) {
     logger.warn('sapo.forward.stage_failed', {
       messageId: message.id,

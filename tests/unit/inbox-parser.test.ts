@@ -54,6 +54,28 @@ describe('inbox parser', () => {
     expect(result.parserFallbacksUsed).toContain('subject-time-hash');
   });
 
+  it('treats data-key rows as stable high-confidence SAPO ids', () => {
+    const html = `
+      <div class="list-item unread" data-key="129990" data-date="2026-04-23T11:00:00Z">
+        <span class="from">Revolut</span>
+        <span class="subject">Cartão virtual criado</span>
+        <span class="date">11:00</span>
+      </div>
+    `;
+
+    const result = parseInboxRows(html);
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]).toEqual(
+      expect.objectContaining({
+        id: '129990',
+        source: 'sapo-row-id',
+        confidence: 'high',
+        isUnread: true
+      })
+    );
+  });
+
   it('skips ad/sponsored rows while preserving real messages', () => {
     const html = `
       <div class="mail-item ad" data-date="2026-04-23T09:00:00Z">
