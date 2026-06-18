@@ -238,7 +238,7 @@ function createPlaywrightSession(
       },
       async readLinkHrefByText(texts: string[]): Promise<string | undefined> {
         const result = await page.evaluate(
-          `(${((candidateTexts: string[]) => {
+          `((candidateTexts) => {
             const normalizedTexts = candidateTexts.map((text) => text.trim().toLowerCase());
             const links = Array.from(document.querySelectorAll('a[href]'));
 
@@ -262,7 +262,7 @@ function createPlaywrightSession(
             }
 
             return undefined;
-          }).toString()})(${JSON.stringify(texts)})`
+          })(${JSON.stringify(texts)})`
         );
 
         return typeof result === 'string' ? result : undefined;
@@ -273,7 +273,7 @@ function createPlaywrightSession(
       async prependText(selectors: string[], text: string): Promise<boolean> {
         for (const selector of selectors) {
           const inserted = await page.evaluate(
-            `(${((targetSelector: string, nextText: string) => {
+            `((targetSelector, nextText) => {
               const element = document.querySelector(targetSelector);
               if (
                 !(element instanceof HTMLElement) &&
@@ -291,7 +291,7 @@ function createPlaywrightSession(
                   return true;
                 }
 
-                element.value = `${note}\n\n${current}`.trimEnd();
+                element.value = (note + '\n\n' + current).trimEnd();
                 element.dispatchEvent(new Event('input', { bubbles: true }));
                 element.dispatchEvent(new Event('change', { bubbles: true }));
                 return true;
@@ -319,7 +319,7 @@ function createPlaywrightSession(
               element.dispatchEvent(new Event('input', { bubbles: true }));
               element.dispatchEvent(new Event('change', { bubbles: true }));
               return true;
-            }).toString()})(${JSON.stringify(selector)}, ${JSON.stringify(text)})`
+            })(${JSON.stringify(selector)}, ${JSON.stringify(text)})`
           );
 
           if (inserted === true) {
@@ -334,7 +334,7 @@ function createPlaywrightSession(
       },
       async readFieldValue(selector: string): Promise<string | undefined> {
         const result = await page.evaluate(
-          `(${((targetSelector: string) => {
+          `((targetSelector) => {
             const element = document.querySelector(targetSelector);
             if (!element) return undefined;
 
@@ -347,17 +347,17 @@ function createPlaywrightSession(
             }
 
             return element.textContent?.trim() || undefined;
-          }).toString()})(${JSON.stringify(selector)})`
+          })(${JSON.stringify(selector)})`
         );
 
         return typeof result === 'string' ? result : undefined;
       },
       async readInnerHtml(selector: string): Promise<string | undefined> {
         const result = await page.evaluate(
-          `(${((targetSelector: string) => {
+          `((targetSelector) => {
             const element = document.querySelector(targetSelector);
             return element?.innerHTML ?? undefined;
-          }).toString()})(${JSON.stringify(selector)})`
+          })(${JSON.stringify(selector)})`
         );
 
         return typeof result === 'string' ? result : undefined;
@@ -383,7 +383,7 @@ function createPlaywrightSession(
         selector = 'button, a, span, small, [role="button"], .clear.button'
       ): Promise<string | undefined> {
         const result = await page.evaluate(
-          `(${((candidateTexts: string[], rootSelector: string) => {
+          `((candidateTexts, rootSelector) => {
             const normalizedTexts = candidateTexts.map((text) => text.trim().toLowerCase());
             const elements = Array.from(document.querySelectorAll(rootSelector));
 
@@ -420,7 +420,7 @@ function createPlaywrightSession(
             }
 
             return undefined;
-          }).toString()})(${JSON.stringify(texts)}, ${JSON.stringify(selector)})`
+          })(${JSON.stringify(texts)}, ${JSON.stringify(selector)})`
         );
 
         return typeof result === 'string' ? result : undefined;
@@ -475,7 +475,7 @@ function createPlaywrightSession(
       },
       async visibleListHtml(listSelector: string): Promise<string | undefined> {
         const result = await page.evaluate(
-          `(${((selector: string) => {
+          `((selector) => {
             const root = document.querySelector(selector);
             if (!root) return undefined;
 
@@ -534,7 +534,7 @@ function createPlaywrightSession(
             });
 
             return normalizedRows.join('\n');
-          }).toString()})(${JSON.stringify(listSelector)})`
+          })(${JSON.stringify(listSelector)})`
         );
 
         return typeof result === 'string' && result.length > 0 ? result : undefined;
