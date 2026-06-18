@@ -244,6 +244,69 @@ describe('app forwarding orchestration', () => {
     );
   });
 
+  it('retries visible messages with previous failed forward status even when not new', async () => {
+    const logger = createLogger();
+    const page = createPage({
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item" data-message-id="m-retry"><span class="from">Revolut</span><span class="subject">Pagamento aprovado</span><span class="datetime">Hoje</span></div>'
+        )
+    });
+    const browser = createBrowser(page);
+    const state = createState({
+      load: vi.fn().mockResolvedValue({
+        seen: [
+          {
+            id: 'm-retry',
+            firstSeenAt: '2026-04-24T00:00:00.000Z',
+            lastSeenAt: '2026-04-24T00:00:00.000Z',
+            source: 'sapo-row-id',
+            confidence: 'high'
+          }
+        ],
+        forwarded: [
+          {
+            id: 'm-retry',
+            forwardedAt: '2026-04-24T00:00:00.000Z',
+            destination: 'dest@example.com',
+            status: 'failed',
+            reason: 'send_failed',
+            attempts: 1
+          }
+        ],
+        scan: {
+          scanCount: 1,
+          lastNewCount: 0,
+          lastScanAt: '2026-04-24T00:00:00.000Z',
+          bootstrapCompletedAt: '2026-04-24T00:00:00.000Z'
+        }
+      })
+    });
+
+    const app = createApp({
+      config: createConfig({ forwardAllowSenderPatterns: ['revolut'] }),
+      logger,
+      browser,
+      state
+    });
+
+    await app.run({ mode: 'forward-new', safetyLevel: 'forward' });
+
+    expect(state.markForwarded).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'm-retry', status: 'success', attempts: 2 })
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      'app.forward.complete',
+      expect.objectContaining({
+        candidateCount: 1,
+        filteredCount: 0,
+        successCount: 1,
+        failedCount: 0
+      })
+    );
+  });
+
   it('persists failed forward outcomes while keeping them retry-visible', async () => {
     const logger = createLogger();
     const page = createPage({

@@ -12,7 +12,8 @@ import { forwardMessage } from './modules/forward.js';
 import { loginToSapo } from './modules/login.js';
 import { createPollController } from './modules/poll.js';
 import { createStateStore } from './modules/state.js';
-import type { AppRuntime, RunOptions } from './types/runtime.js';
+import type { StateSnapshot } from './modules/state.js';
+import type { AppRuntime, InboxListingResult, RunOptions } from './types/runtime.js';
 
 export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
   return {
@@ -82,7 +83,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               throw new ModuleError('forward', 'DESTINATION_EMAIL is required for forward mode.');
             }
 
-            const candidates = listing.newMessages ?? [];
+            const candidates = collectForwardCandidates(listing, snapshotForForward);
             if (candidates.length > 0 || !quietNoop) {
               logger.info('app.forward.start', { candidateCount: candidates.length });
             } else {
@@ -313,6 +314,23 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
       });
     }
   };
+}
+
+function collectForwardCandidates(listing: InboxListingResult, snapshot: StateSnapshot) {
+  const candidates = new Map((listing.newMessages ?? []).map((message) => [message.id, message]));
+  const failedForwardIds = new Set(
+    snapshot.forwarded.filter((entry) => entry.status === 'failed').map((entry) => entry.id)
+  );
+
+  for (const message of listing.messages) {
+    if (!failedForwardIds.has(message.id)) {
+      continue;
+    }
+
+    candidates.set(message.id, message);
+  }
+
+  return Array.from(candidates.values());
 }
 
 async function captureFailureArtifacts(
