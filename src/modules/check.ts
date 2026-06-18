@@ -38,6 +38,20 @@ export async function checkInbox({
     state: snapshot
   });
 
+  if (
+    snapshot.seen.length > 0 &&
+    listing.messages.length > 0 &&
+    detection.alreadySeenMessages.length === 0 &&
+    detection.newMessages.length === listing.messages.length &&
+    detection.newMessages.every((message) => message.source === 'subject-time-hash')
+  ) {
+    throw new ModuleError('check', 'Inbox listing degraded: stable message ids unavailable.', {
+      parserFallbacksUsed: listing.parserFallbacksUsed,
+      visibleMessages: listing.messages.length,
+      knownMessages: snapshot.seen.length
+    });
+  }
+
   await state.save(detection.nextState);
 
   const result: InboxListingResult = {

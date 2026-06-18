@@ -76,6 +76,29 @@ describe('inbox parser', () => {
     );
   });
 
+  it('treats normalized data-input-id rows as dom fallback ids', () => {
+    const html = `
+      <div class="mail-item unread" data-input-id="26206" data-date="2026-04-23T11:00:00Z">
+        <span class="from">Revolut</span>
+        <span class="subject">Cartao virtual criado</span>
+        <span class="date">11:00</span>
+      </div>
+    `;
+
+    const result = parseInboxRows(html);
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]).toEqual(
+      expect.objectContaining({
+        id: '26206',
+        source: 'dom-fallback',
+        confidence: 'medium',
+        isUnread: true
+      })
+    );
+    expect(result.parserFallbacksUsed).not.toContain('subject-time-hash');
+  });
+
   it('skips ad/sponsored rows while preserving real messages', () => {
     const html = `
       <div class="mail-item ad" data-date="2026-04-23T09:00:00Z">

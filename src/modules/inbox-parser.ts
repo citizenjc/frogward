@@ -92,11 +92,13 @@ function parseAttributes(chunk: string): Record<string, string> {
 }
 
 function parseMessageRow(row: RawRow, parserFallbacksUsed: Set<string>): MessageSummary | null {
+  const domFallbackId =
+    row.attributes['data-input-id'] ?? extractByRegex(row.html, /<input[^>]*id="([^"]+)"/i);
   const id =
     row.attributes['data-message-id'] ??
     row.attributes['data-key'] ??
     row.attributes['data-id'] ??
-    extractByRegex(row.html, /<input[^>]*id="([^"]+)"/i) ??
+    domFallbackId ??
     buildFallbackId(row, parserFallbacksUsed);
 
   const from =
@@ -128,13 +130,15 @@ function parseMessageRow(row: RawRow, parserFallbacksUsed: Set<string>): Message
     source:
       row.attributes['data-message-id'] || row.attributes['data-key'] || row.attributes['data-id']
         ? 'sapo-row-id'
-        : extractByRegex(row.html, /<input[^>]*id="([^"]+)"/i)
+        : domFallbackId
           ? 'dom-fallback'
           : 'subject-time-hash',
     confidence:
       row.attributes['data-message-id'] || row.attributes['data-key'] || row.attributes['data-id']
         ? 'high'
-        : receivedAt
+        : domFallbackId
+          ? 'medium'
+          : receivedAt
           ? 'medium'
           : 'low'
   };

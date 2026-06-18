@@ -378,4 +378,104 @@ describe('check module', () => {
     expect(result.probe.alreadySeenCount).toBe(1);
     expect(result.probe.bootstrapScan).toBe(false);
   });
+
+  it('fails safe when all visible rows degrade to subject-time-hash against existing state', async () => {
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const page = {
+      goto: vi.fn().mockResolvedValue(null),
+      reload: vi.fn().mockResolvedValue(null),
+      readLinkHrefByText: vi.fn().mockResolvedValue(undefined),
+      fill: vi.fn().mockResolvedValue(undefined),
+      prependText: vi.fn().mockResolvedValue(true),
+      pressKey: vi.fn().mockResolvedValue(undefined),
+      readFieldValue: vi.fn().mockResolvedValue(undefined),
+      readInnerHtml: vi.fn().mockResolvedValue(undefined),
+      click: vi.fn().mockResolvedValue(undefined),
+      clickFirst: vi.fn().mockResolvedValue(true),
+      clickFirstByText: vi.fn().mockResolvedValue(undefined),
+      waitForAnySelector: vi.fn().mockResolvedValue('a[href*="inbox"]'),
+      waitForSelector: vi.fn().mockResolvedValue(true),
+      isVisible: vi.fn().mockResolvedValue(true),
+      url: vi.fn().mockReturnValue('https://mail.sapo.pt/v7/#/messages/SU5CT1g'),
+      title: vi.fn().mockResolvedValue('(2) Caixa de Entrada - SAPO MAIL'),
+      screenshot: vi.fn().mockResolvedValue('tmp/live-artifacts/check.png'),
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item" data-date="2026-04-24T10:00:00Z"><span class="from">Banco BPI</span><span class="subject">Mensagem antiga</span><span class="datetime">Hoje</span></div><div class="mail-item" data-date="2026-04-24T10:10:00Z"><span class="from">Revolut</span><span class="subject">Pagamento aprovado</span><span class="datetime">Hoje</span></div>'
+        ),
+      contentIncludesAny: vi.fn().mockResolvedValue(false),
+      content: vi.fn().mockResolvedValue('<html></html>')
+    };
+
+    const state = {
+      load: vi.fn().mockResolvedValue({
+        seen: [
+          {
+            id: 'old-real-id',
+            firstSeenAt: '2026-04-24T00:00:00.000Z',
+            lastSeenAt: '2026-04-24T00:00:00.000Z',
+            source: 'sapo-row-id',
+            confidence: 'high'
+          }
+        ],
+        forwarded: [],
+        scan: {
+          scanCount: 1,
+          lastNewCount: 0,
+          lastScanAt: '2026-04-24T00:00:00.000Z',
+          bootstrapCompletedAt: '2026-04-24T00:00:00.000Z'
+        }
+      }),
+      save: vi.fn().mockResolvedValue(undefined),
+      hasSeen: vi.fn().mockResolvedValue(false),
+      markSeen: vi.fn().mockResolvedValue({
+        seen: [],
+        forwarded: [],
+        scan: { scanCount: 0, lastNewCount: 0 }
+      }),
+      markForwarded: vi.fn().mockResolvedValue({
+        seen: [],
+        forwarded: [],
+        scan: { scanCount: 0, lastNewCount: 0 }
+      }),
+      hasForwarded: vi.fn().mockResolvedValue(false)
+    };
+
+    await expect(
+      checkInbox({
+        config: {
+          mode: 'live',
+          sapoEmail: 'user@example.com',
+          sapoPassword: 'secret',
+          destinationEmail: undefined,
+          pollIntervalMs: 60000,
+          pollErrorBackoffMs: 5000,
+          headless: true,
+          stateFilePath: 'tmp/sapo/runtime-state.json',
+          storageStatePath: 'tmp/sapo/session.auth.json',
+          persistStorageState: true,
+          artifactDir: 'tmp/live-artifacts',
+          captureScreenshotOnFailure: true,
+          captureTraceOnFailure: true,
+          forwardingEnabled: false,
+          forwardAllowSenderPatterns: [],
+          forwardBlockSenderPatterns: [],
+          forwardAllowSubjectPatterns: [],
+          forwardBlockSubjectPatterns: [],
+          logLevel: 'info'
+        },
+        logger,
+        page,
+        state
+      })
+    ).rejects.toBeInstanceOf(ModuleError);
+    expect(state.save).not.toHaveBeenCalled();
+  });
 });
