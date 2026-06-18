@@ -291,7 +291,7 @@ function createPlaywrightSession(
                   return true;
                 }
 
-                element.value = (note + '\n\n' + current).trimEnd();
+                element.value = (note + '\\n\\n' + current).trimEnd();
                 element.dispatchEvent(new Event('input', { bubbles: true }));
                 element.dispatchEvent(new Event('change', { bubbles: true }));
                 return true;
@@ -533,7 +533,7 @@ function createPlaywrightSession(
               );
             });
 
-            return normalizedRows.join('\n');
+            return normalizedRows.join('\\n');
           })(${JSON.stringify(listSelector)})`
         );
 
