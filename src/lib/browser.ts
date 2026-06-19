@@ -7,6 +7,14 @@ import type { Logger } from './logger.js';
 
 let stealthConfigured = false;
 
+const CONTAINER_CHROMIUM_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--no-zygote'
+];
+
 export interface BrowserPage {
   goto(url: string): Promise<unknown>;
   reload(): Promise<unknown>;
@@ -77,6 +85,10 @@ interface BrowserHandle {
   close(): Promise<void>;
 }
 
+interface ChromiumLauncher {
+  launch(options: { headless: boolean; args?: string[] }): Promise<BrowserHandle>;
+}
+
 export function createBrowserManager({ config, logger }: BrowserManagerOptions): BrowserManager {
   return {
     async withSession<T>(callback: (session: BrowserSession) => Promise<T>): Promise<T> {
@@ -91,7 +103,10 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
 
       try {
         const chromium = await createChromiumLauncher(logger);
-        browser = await chromium.launch({ headless: config.headless });
+        browser = await chromium.launch({
+          headless: config.headless,
+          args: CONTAINER_CHROMIUM_ARGS
+        });
         const reusableStorageStatePath = await resolveReusableStorageStatePath(
           config.storageStatePath
         );
@@ -590,7 +605,7 @@ async function resolveReusableStorageStatePath(
 
 async function createChromiumLauncher(
   logger: Logger
-): Promise<{ launch(options: { headless: boolean }): Promise<BrowserHandle> }> {
+): Promise<ChromiumLauncher> {
   const { chromium } = await import('playwright-extra');
 
   if (!stealthConfigured) {
@@ -600,5 +615,5 @@ async function createChromiumLauncher(
     logger.info('browser.stealth.enabled');
   }
 
-  return chromium as unknown as { launch(options: { headless: boolean }): Promise<BrowserHandle> };
+  return chromium as unknown as ChromiumLauncher;
 }
