@@ -8,8 +8,9 @@ const SENT_TEXTS = ['Enviados', 'Sent'];
 
 export async function resolveInboxUrl(page: BrowserPage): Promise<string> {
   const currentUrl = page.url();
-  if (looksLikeMailboxUrl(currentUrl)) {
-    return currentUrl;
+  const normalizedCurrentUrl = normalizeInboxUrl(currentUrl);
+  if (normalizedCurrentUrl) {
+    return normalizedCurrentUrl;
   }
 
   const discovered = await page.readLinkHrefByText(INBOX_TEXTS);
@@ -21,6 +22,15 @@ export async function resolveSentUrl(page: BrowserPage): Promise<string> {
   return discovered || FALLBACK_SENT_URL;
 }
 
-function looksLikeMailboxUrl(url: string): boolean {
-  return url.includes('/#/messages/') || url.includes('/messages/SU5CT1g');
+function normalizeInboxUrl(url: string): string | undefined {
+  if (!url.includes('/#/messages/') && !url.includes('/messages/SU5CT1g')) {
+    return undefined;
+  }
+
+  const inboxMatch = url.match(/^(.*\/messages\/SU5CT1g)(?:[/?#].*)?$/);
+  if (inboxMatch?.[1]) {
+    return inboxMatch[1];
+  }
+
+  return undefined;
 }
