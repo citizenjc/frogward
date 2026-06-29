@@ -1,5 +1,6 @@
-import { access, mkdir, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 import type { AppConfig } from '../config/schema.js';
 import { BrowserError } from './errors.js';
@@ -100,12 +101,15 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
       logger.info('browser.playwright.start', { headless: config.headless });
       let browser: BrowserHandle | undefined;
       let context: BrowserContextHandle | undefined;
+      let userDataDir: string | undefined;
 
       try {
+        userDataDir = await mkdtemp(join(tmpdir(), 'frogward-'));
+
         const chromium = await createChromiumLauncher(logger);
         browser = await chromium.launch({
           headless: config.headless,
-          args: CONTAINER_CHROMIUM_ARGS
+          args: [...CONTAINER_CHROMIUM_ARGS, `--user-data-dir=${userDataDir}`]
         });
         const reusableStorageStatePath = await resolveReusableStorageStatePath(
           config.storageStatePath
@@ -130,6 +134,10 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
       } finally {
         await context?.close();
         await browser?.close();
+
+        if (userDataDir) {
+          await rm(userDataDir, { recursive: true, force: true }).catch(() => {});
+        }
       }
     }
   };
