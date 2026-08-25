@@ -81,13 +81,11 @@ interface BrowserContextHandle {
   close(): Promise<void>;
 }
 
-interface BrowserHandle {
-  newContext(options?: { storageState: string }): Promise<BrowserContextHandle>;
-  close(): Promise<void>;
-}
-
 interface ChromiumLauncher {
-  launch(options: { headless: boolean; args?: string[] }): Promise<BrowserHandle>;
+  launchPersistentContext(
+    userDataDir: string,
+    options: { headless: boolean; args?: string[]; storageState?: string }
+  ): Promise<BrowserContextHandle>;
 }
 
 export function createBrowserManager({ config, logger }: BrowserManagerOptions): BrowserManager {
@@ -99,7 +97,6 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
       }
 
       logger.info('browser.playwright.start', { headless: config.headless });
-      let browser: BrowserHandle | undefined;
       let context: BrowserContextHandle | undefined;
       let userDataDir: string | undefined;
 
@@ -107,16 +104,14 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
         userDataDir = await mkdtemp(join(tmpdir(), 'frogward-'));
 
         const chromium = await createChromiumLauncher(logger);
-        browser = await chromium.launch({
-          headless: config.headless,
-          args: [...CONTAINER_CHROMIUM_ARGS, `--user-data-dir=${userDataDir}`]
-        });
         const reusableStorageStatePath = await resolveReusableStorageStatePath(
           config.storageStatePath
         );
-        context = await browser.newContext(
-          reusableStorageStatePath ? { storageState: reusableStorageStatePath } : undefined
-        );
+        context = await chromium.launchPersistentContext(userDataDir, {
+          headless: config.headless,
+          args: CONTAINER_CHROMIUM_ARGS,
+          ...(reusableStorageStatePath ? { storageState: reusableStorageStatePath } : {})
+        });
         const page = await context.newPage();
         const session = createPlaywrightSession(
           page,
@@ -133,7 +128,6 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
         });
       } finally {
         await context?.close();
-        await browser?.close();
 
         if (userDataDir) {
           await rm(userDataDir, { recursive: true, force: true }).catch(() => {});
