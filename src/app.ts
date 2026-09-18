@@ -13,6 +13,7 @@ import { loginToSapo } from './modules/login.js';
 import { createPollController } from './modules/poll.js';
 import { createStateStore } from './modules/state.js';
 import type { StateSnapshot } from './modules/state.js';
+import type { ForwardedMessageRecord } from './types/message.js';
 import type { AppRuntime, InboxListingResult, RunOptions } from './types/runtime.js';
 
 export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
@@ -316,10 +317,26 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
   };
 }
 
+const MAX_FORWARD_ATTEMPTS = 3;
+
+// Failures where the send control was already clicked. Retrying these would re-send
+// the message to the destination on every poll cycle, so they are terminal.
+const NON_RETRYABLE_FORWARD_REASONS = new Set<ForwardedMessageRecord['reason']>([
+  'send_confirmation_missing'
+]);
+
+function isRetryableForwardFailure(entry: ForwardedMessageRecord): boolean {
+  return (
+    entry.status === 'failed' &&
+    entry.attempts < MAX_FORWARD_ATTEMPTS &&
+    !NON_RETRYABLE_FORWARD_REASONS.has(entry.reason)
+  );
+}
+
 function collectForwardCandidates(listing: InboxListingResult, snapshot: StateSnapshot) {
   const candidates = new Map((listing.newMessages ?? []).map((message) => [message.id, message]));
   const failedForwardIds = new Set(
-    snapshot.forwarded.filter((entry) => entry.status === 'failed').map((entry) => entry.id)
+    snapshot.forwarded.filter(isRetryableForwardFailure).map((entry) => entry.id)
   );
 
   for (const message of listing.messages) {

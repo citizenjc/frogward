@@ -436,11 +436,15 @@ async function confirmViaSentFolder(
 async function confirmViaComposeDismissed(
   page: BrowserPage
 ): Promise<ForwardConfirmationSignal | undefined> {
+  // Only compose-specific elements count as "compose still open". Generic selectors
+  // (any "Enviar" button, any textarea, etc.) also match the message view itself, e.g.
+  // the read-receipt prompt "Enviar recibo de leitura", and would block confirmation.
   const composeSignals = [
     ...RECIPIENT_INPUT_SELECTORS,
     ...RECIPIENT_CONTAINER_SELECTORS,
-    ...SEND_ACTION_SELECTORS,
-    ...BODY_EDITOR_SELECTORS
+    '#subject',
+    'h2:has-text("Nova mensagem")',
+    'span.button:has-text("Enviar")'
   ];
 
   for (const selector of composeSignals) {

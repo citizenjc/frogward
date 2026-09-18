@@ -526,6 +526,40 @@ describe('forward module', () => {
     });
   });
 
+  it('ignores non-compose "Enviar" buttons (read receipt prompt) when checking compose dismissal', async () => {
+    const page = createPageStub({
+      contentIncludesAny: vi.fn().mockResolvedValue(false),
+      waitForAnySelector: vi.fn().mockImplementation(async (selectors: string[]) => {
+        if (selectors.includes('.clear.button')) return '.clear.button';
+        if (selectors.includes('.recipents-list') || selectors.includes('#subject'))
+          return '.recipents-list';
+        if (selectors.includes('.recipents-list input[type="text"]'))
+          return '.recipents-list input[type="text"]';
+        if (selectors.includes('.messages-list')) return '.messages-list';
+        if (selectors.includes('.list-item')) return '.list-item';
+        return undefined;
+      }),
+      content: vi.fn().mockResolvedValue('<html><body><div class="messages-list"></div></body></html>'),
+      // Message view shows "Enviar recibo de leitura" as a role=button span; compose is closed.
+      isVisible: vi.fn().mockImplementation(async (selector: string) =>
+        selector === '[role="button"]:has-text("Enviar")'
+      )
+    });
+
+    const result = await forwardMessage({
+      config: createConfig(),
+      logger: createLogger(),
+      message,
+      page
+    });
+
+    expect(result).toEqual({
+      messageId: '26206',
+      status: 'success',
+      confirmation: { via: 'content', signal: 'compose-dismissed' }
+    });
+  });
+
   it('treats dismissed compose view as success fallback when no explicit error appears', async () => {
     const page = createPageStub({
       contentIncludesAny: vi.fn().mockResolvedValue(false),
