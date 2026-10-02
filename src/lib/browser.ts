@@ -8,6 +8,8 @@ import type { Logger } from './logger.js';
 
 let stealthConfigured = false;
 
+const CONTEXT_CLOSE_TIMEOUT_MS = 30_000;
+
 const CONTAINER_CHROMIUM_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
@@ -127,7 +129,9 @@ export function createBrowserManager({ config, logger }: BrowserManagerOptions):
           mode: config.mode
         });
       } finally {
-        await context?.close();
+        if (context) {
+          await closeContext(context, logger);
+        }
 
         if (userDataDir) {
           await rm(userDataDir, { recursive: true, force: true }).catch(() => {});
@@ -586,6 +590,28 @@ function createPlaywrightSession(
   };
 }
 
+// A wedged Chromium can make close() hang forever, which would block the service from
+// ever starting a replacement session.
+async function closeContext(context: BrowserContextHandle, logger: Logger): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), CONTEXT_CLOSE_TIMEOUT_MS);
+  });
+
+  try {
+    const result = await Promise.race([context.close().then(() => 'closed' as const), timedOut]);
+    if (result === 'timeout') {
+      logger.warn('browser.playwright.close_timeout', { timeoutMs: CONTEXT_CLOSE_TIMEOUT_MS });
+    }
+  } catch (error) {
+    logger.warn('browser.playwright.close_failed', {
+      cause: error instanceof Error ? error.message : 'unknown'
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function ensureParentDirectory(filePath: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
 }
@@ -605,9 +631,7 @@ async function resolveReusableStorageStatePath(
   }
 }
 
-async function createChromiumLauncher(
-  logger: Logger
-): Promise<ChromiumLauncher> {
+async function createChromiumLauncher(logger: Logger): Promise<ChromiumLauncher> {
   const { chromium } = await import('playwright-extra');
 
   if (!stealthConfigured) {

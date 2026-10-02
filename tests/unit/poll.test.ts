@@ -239,4 +239,156 @@ describe('poll module', () => {
 
     expect(afterCheck).toHaveBeenCalled();
   });
+
+  it('asks for a fresh session after repeated consecutive failures', async () => {
+    const check = vi.fn().mockRejectedValue(new Error('session expired'));
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      logger,
+      config: {
+        pollIntervalMs: 10,
+        pollErrorBackoffMs: 10,
+        maxConsecutiveFailures: 2
+      }
+    });
+
+    // cycle 1 retries once internally after 2s, then cycle 2 fails too.
+    await expect(controller.waitUntilStopped()).resolves.toBe('unhealthy');
+    expect(logger.warn).toHaveBeenCalledWith(
+      'poll.session.recycle',
+      expect.objectContaining({ reason: 'consecutive_failures', consecutiveFailures: 2 })
+    );
+  }, 10_000);
+
+  it('resets the failure count after a successful cycle', async () => {
+    const check = vi
+      .fn()
+      .mockResolvedValueOnce(okResult())
+      .mockRejectedValueOnce(new Error('blip'))
+      .mockResolvedValueOnce(okResult())
+      .mockRejectedValueOnce(new Error('blip'))
+      .mockResolvedValue(okResult());
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      logger,
+      config: {
+        pollIntervalMs: 5,
+        pollErrorBackoffMs: 5,
+        maxConsecutiveFailures: 2
+      }
+    });
+
+    await sleep(80);
+    controller.stop();
+
+    await expect(controller.waitUntilStopped()).resolves.toBe('stopped');
+    expect(logger.warn).not.toHaveBeenCalledWith('poll.session.recycle', expect.anything());
+  });
+
+  it('treats a hung cycle as unhealthy', async () => {
+    const check = vi.fn().mockReturnValue(new Promise(() => {}));
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      logger,
+      config: {
+        pollIntervalMs: 10,
+        pollErrorBackoffMs: 10,
+        cycleTimeoutMs: 30
+      }
+    });
+
+    await expect(controller.waitUntilStopped()).resolves.toBe('unhealthy');
+    expect(logger.warn).toHaveBeenCalledWith(
+      'poll.session.recycle',
+      expect.objectContaining({ reason: 'cycle_timeout' })
+    );
+  });
+
+  it('expires the session once it reaches its maximum age', async () => {
+    const check = vi.fn().mockResolvedValue(okResult());
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      logger,
+      config: {
+        pollIntervalMs: 10,
+        pollErrorBackoffMs: 10,
+        maxSessionAgeMs: 25
+      }
+    });
+
+    await expect(controller.waitUntilStopped()).resolves.toBe('expired');
+    expect(logger.info).toHaveBeenCalledWith(
+      'poll.session.recycle',
+      expect.objectContaining({ reason: 'max_session_age' })
+    );
+  });
+
+  it('stops without waiting out the poll interval', async () => {
+    const check = vi.fn().mockResolvedValue(okResult());
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const controller = createPollController({
+      check,
+      logger,
+      config: {
+        pollIntervalMs: 60_000,
+        pollErrorBackoffMs: 60_000
+      }
+    });
+
+    await sleep(20);
+    const stoppedAt = Date.now();
+    controller.stop();
+
+    await expect(controller.waitUntilStopped()).resolves.toBe('stopped');
+    expect(Date.now() - stoppedAt).toBeLessThan(1_000);
+  });
 });
+
+function okResult() {
+  return {
+    messages: [],
+    probe: {
+      inboxReached: true,
+      parsedMessageCount: 1,
+      skippedAdRowCount: 0,
+      parserFallbacksUsed: [],
+      newMessageCount: 0,
+      alreadySeenCount: 1,
+      bootstrapScan: false
+    }
+  };
+}

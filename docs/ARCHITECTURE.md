@@ -31,6 +31,8 @@ Service mode boundary:
 - `--service` is the always-on application mode for unattended polling + forwarding.
 - It reuses the same forward gate, filter rules, recipient verification, and state model as manual `--forward-new`.
 - The app process itself is continuous, but external process supervision (systemd/pm2/docker restart policy) is still an operational concern outside the core app.
+- `--service` and `--poll` recover from a broken browser session on their own: after 3 consecutive failed cycles, or a cycle that hangs for more than 10 minutes, the browser is closed and a new session (including a fresh SAPO login) is started. Repeated restarts back off exponentially, capped at 15 minutes, so a persistent login failure does not hammer SAPO.
+- Healthy sessions are also recycled every 6 hours so a long-running Chromium cannot slowly degrade.
 
 Logging boundary for read-only listing:
 
