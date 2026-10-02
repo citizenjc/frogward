@@ -11,6 +11,7 @@ import { decideForwardEligibility } from './modules/forward-filter.js';
 import { forwardMessage } from './modules/forward.js';
 import { loginToSapo } from './modules/login.js';
 import { createPollController } from './modules/poll.js';
+import type { PollController, PollStopReason } from './modules/poll.js';
 import { createStateStore } from './modules/state.js';
 import type { StateSnapshot } from './modules/state.js';
 import type { ForwardedMessageRecord } from './types/message.js';
@@ -33,7 +34,12 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
         forwardedMessages: snapshot.forwarded.length
       });
 
-      await browser.withSession(async (session) => {
+      const stopSignal =
+        options.mode === 'poll' || options.mode === 'service'
+          ? createStopSignal(logger)
+          : undefined;
+
+      const sessionBody = async (session: BrowserSession): Promise<SessionOutcome> => {
         const tracePath = join(config.artifactDir, 'trace', `probe-${Date.now()}.zip`);
         let failed = false;
         let traceActive = false;
@@ -239,8 +245,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               }
             });
 
-            await waitForStopSignal(controller, logger);
-            return;
+            return runUntilStopped(controller, stopSignal);
           }
 
           if (options.mode === 'service') {
@@ -273,8 +278,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
               }
             });
 
-            await waitForStopSignal(controller, logger);
-            return;
+            return runUntilStopped(controller, stopSignal);
           }
 
           const listing = await runSingleScan();
@@ -297,6 +301,7 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
           if (options.mode === 'forward-new') {
             await processForwardCandidates(listing, snapshot, false);
           }
+          return undefined;
         } catch (error) {
           failed = true;
           if (traceEnabled && traceActive) {
@@ -312,12 +317,29 @@ export function createApp(runtimeOverrides: Partial<AppRuntime> = {}) {
             traceActive = false;
           }
         }
-      });
+      };
+
+      if (!stopSignal) {
+        await browser.withSession(sessionBody);
+        return;
+      }
+
+      await runWithSessionRecovery(
+        () => browser.withSession(sessionBody),
+        stopSignal,
+        config,
+        logger
+      );
     }
   };
 }
 
 const MAX_FORWARD_ATTEMPTS = 3;
+const MAX_SESSION_RESTART_DELAY_MS = 15 * 60_000;
+const HEALTHY_SESSION_MS = 30 * 60_000;
+
+// What a browser session ended with; undefined for one-shot modes.
+type SessionOutcome = PollStopReason | undefined;
 
 // Failures where the send control was already clicked. Retrying these would re-send
 // the message to the destination on every poll cycle, so they are terminal.
@@ -414,22 +436,133 @@ function summarizeArtifact(filePath: string): {
   };
 }
 
-async function waitForStopSignal(
-  controller: { stop(): void; waitUntilStopped(): Promise<void> },
+// Long-running modes keep going across browser sessions: when a session goes bad
+// (SAPO login expired, Chromium crashed or hung) it is closed and a fresh one,
+// including a new login, is started instead of polling a dead page forever.
+async function runWithSessionRecovery(
+  runSession: () => Promise<SessionOutcome>,
+  stopSignal: StopSignal,
+  config: AppRuntime['config'],
   logger: AppRuntime['logger']
 ): Promise<void> {
-  await new Promise<void>((resolve) => {
-    const handle = (): void => {
-      controller.stop();
-      logger.info('app.poll.stop-signal');
+  try {
+    let consecutiveSessionFailures = 0;
+
+    while (!stopSignal.stopped) {
+      const startedAt = Date.now();
+      let outcome: SessionOutcome;
+      let failure: unknown;
+      try {
+        outcome = await runSession();
+      } catch (error) {
+        if (stopSignal.stopped) {
+          throw error;
+        }
+        failure = error;
+      }
+
+      if (stopSignal.stopped || outcome === 'stopped') {
+        return;
+      }
+
+      if (outcome === 'expired') {
+        consecutiveSessionFailures = 0;
+        logger.info('app.session.restart', { reason: 'expired' });
+        continue;
+      }
+
+      // A session that worked for a while before failing starts the backoff over.
+      if (Date.now() - startedAt >= HEALTHY_SESSION_MS) {
+        consecutiveSessionFailures = 0;
+      }
+      consecutiveSessionFailures += 1;
+      const delayMs = Math.min(
+        config.pollErrorBackoffMs * 2 ** (consecutiveSessionFailures - 1),
+        MAX_SESSION_RESTART_DELAY_MS
+      );
+      logger[failure ? 'error' : 'warn']('app.session.restart', {
+        reason: failure ? 'session_failed' : 'unhealthy',
+        consecutiveFailures: consecutiveSessionFailures,
+        retryInMs: delayMs,
+        ...(failure
+          ? {
+              message: failure instanceof Error ? failure.message : 'unknown',
+              ...(isAppError(failure) ? { code: failure.code, ...failure.details } : {})
+            }
+          : {})
+      });
+      await stopSignal.sleep(delayMs);
+    }
+  } finally {
+    stopSignal.dispose();
+  }
+}
+
+interface StopSignal {
+  readonly stopped: boolean;
+  onStop(listener: () => void): () => void;
+  sleep(ms: number): Promise<void>;
+  dispose(): void;
+}
+
+function createStopSignal(logger: AppRuntime['logger']): StopSignal {
+  let stopped = false;
+  const listeners = new Set<() => void>();
+
+  const handle = (): void => {
+    if (stopped) {
+      return;
+    }
+    stopped = true;
+    logger.info('app.poll.stop-signal');
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+
+  process.on('SIGINT', handle);
+  process.on('SIGTERM', handle);
+
+  return {
+    get stopped() {
+      return stopped;
+    },
+    onStop(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    sleep(ms: number): Promise<void> {
+      return new Promise<void>((resolve) => {
+        const done = (): void => {
+          clearTimeout(timer);
+          listeners.delete(done);
+          resolve();
+        };
+        const timer = setTimeout(done, ms);
+        listeners.add(done);
+      });
+    },
+    dispose(): void {
       process.off('SIGINT', handle);
       process.off('SIGTERM', handle);
-      void controller.waitUntilStopped().finally(resolve);
-    };
+      listeners.clear();
+    }
+  };
+}
 
-    process.on('SIGINT', handle);
-    process.on('SIGTERM', handle);
-  });
+async function runUntilStopped(
+  controller: PollController,
+  stopSignal: StopSignal | undefined
+): Promise<PollStopReason> {
+  if (!stopSignal || stopSignal.stopped) {
+    controller.stop();
+  }
+  const unsubscribe = stopSignal?.onStop(() => controller.stop());
+  try {
+    return await controller.waitUntilStopped();
+  } finally {
+    unsubscribe?.();
+  }
 }
 
 async function runModule<T>(moduleName: string, operation: () => Promise<T>): Promise<T> {

@@ -669,4 +669,80 @@ describe('app forwarding orchestration', () => {
       process.off = originalOff;
     }
   });
+
+  it('starts a fresh browser session in service mode when a session fails', async () => {
+    const logger = createLogger();
+    const page = createPage({
+      visibleListHtml: vi
+        .fn()
+        .mockResolvedValue(
+          '<div class="mail-item" data-message-id="m-5"><span class="from">Revolut</span><span class="subject">Pagamento aprovado</span><span class="datetime">Hoje</span></div>'
+        )
+    });
+    const browser = createBrowser(page);
+    browser.withSession.mockRejectedValueOnce(new Error('Browser startup or navigation failed.'));
+    const state = createState({
+      load: vi.fn().mockResolvedValue({
+        seen: [
+          {
+            id: 'old-seen',
+            firstSeenAt: '2026-04-24T00:00:00.000Z',
+            lastSeenAt: '2026-04-24T00:00:00.000Z',
+            source: 'sapo-row-id',
+            confidence: 'high'
+          }
+        ],
+        forwarded: [],
+        scan: {
+          scanCount: 1,
+          lastNewCount: 0,
+          lastScanAt: '2026-04-24T00:00:00.000Z',
+          bootstrapCompletedAt: '2026-04-24T00:00:00.000Z'
+        }
+      })
+    });
+
+    const originalOn = process.on;
+    const originalOff = process.off;
+    const signalHandlers = new Map<string, () => void>();
+    process.on = ((event: string, handler: () => void) => {
+      signalHandlers.set(event, handler);
+      return process;
+    }) as typeof process.on;
+    process.off = ((event: string) => {
+      signalHandlers.delete(event);
+      return process;
+    }) as typeof process.off;
+
+    try {
+      const app = createApp({
+        config: createConfig({
+          forwardAllowSenderPatterns: ['revolut'],
+          pollIntervalMs: 10,
+          pollErrorBackoffMs: 10
+        }),
+        logger,
+        browser,
+        state
+      });
+
+      const runPromise = app.run({ mode: 'service', safetyLevel: 'forward' });
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      signalHandlers.get('SIGINT')?.();
+      await runPromise;
+
+      expect(browser.withSession).toHaveBeenCalledTimes(2);
+      expect(logger.error).toHaveBeenCalledWith(
+        'app.session.restart',
+        expect.objectContaining({ reason: 'session_failed', consecutiveFailures: 1 })
+      );
+      expect(state.markForwarded).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'm-5', status: 'success' })
+      );
+      expect(signalHandlers.size).toBe(0);
+    } finally {
+      process.on = originalOn;
+      process.off = originalOff;
+    }
+  });
 });
